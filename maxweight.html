@@ -140,6 +140,12 @@
                     <div id="current-set-display" class="text-xl font-bold text-slate-800 mb-2">Set 1 of 3</div>
                     <div id="current-hand-display" class="text-lg font-semibold text-slate-600">Right Hand</div>
                     <div id="set-info" class="mt-2 text-md text-slate-500"></div>
+                    <!-- Display total times here -->
+                    <div id="total-times-display" class="mt-4 text-base text-slate-700 hidden">
+                        <p>Total Workout Time: <span id="total-workout-time">0m 0s</span></p>
+                        <p>Total Lift Time: <span id="total-lift-time">0m 0s</span></p>
+                        <p>Total Rest Time: <span id="total-rest-time">0m 0s</span></p>
+                    </div>
                      <div id="set-actions" class="mt-6 hidden flex flex-col sm:flex-row justify-center gap-4">
                         <button id="start-new-workout-btn" class="bg-slate-600 text-white font-bold py-2 px-6 rounded-md hover:bg-slate-700 transition duration-300">Start New Workout</button>
                     </div>
@@ -150,8 +156,8 @@
                 </div>
             </section>
             
-            <section id="logged-results" class="section-card p-6 md:p-8">
-                <h2 class="text-2xl font-bold text-slate-900 mb-4">Your Logged Workouts</h2>
+            <section id="current-session-lifts" class="section-card p-6 md:p-8">
+                <h2 class="text-2xl font-bold text-slate-900 mb-4">Current Session Lifts</h2>
                 <div id="results-table-container" class="overflow-x-auto">
                     <table class="min-w-full divide-y divide-slate-200">
                         <thead class="bg-slate-50">
@@ -164,9 +170,34 @@
                                 <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Weight (lbs/kg)</th>
                             </tr>
                         </thead>
-                        <tbody id="results-table-body" class="bg-white divide-y divide-slate-200">
+                        <tbody id="current-session-table-body" class="bg-white divide-y divide-slate-200">
                             <tr>
-                                <td colspan="6" class="px-6 py-4 whitespace-nowrap text-sm text-slate-500 text-center">No workouts logged yet.</td>
+                                <td colspan="6" class="px-6 py-4 whitespace-nowrap text-sm text-slate-500 text-center">No lifts logged in current session.</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <section id="workout-history" class="section-card p-6 md:p-8">
+                <h2 class="text-2xl font-bold text-slate-900 mb-4">Past Workout History</h2>
+                <div id="history-table-container" class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-slate-200">
+                        <thead class="bg-slate-50">
+                            <tr>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Date</th>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Grip</th>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Weight</th>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Sets</th>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Lift Dur.</th>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Total Workout Time</th>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Total Lift Time</th>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Total Rest Time</th>
+                            </tr>
+                        </thead>
+                        <tbody id="history-table-body" class="bg-white divide-y divide-slate-200">
+                            <tr>
+                                <td colspan="8" class="px-6 py-4 whitespace-nowrap text-sm text-slate-500 text-center">Loading workout history...</td>
                             </tr>
                         </tbody>
                     </table>
@@ -189,12 +220,25 @@
         </main>
     </div>
 
-    <script>
-        document.addEventListener('DOMContentLoaded', () => {
+    <script type="module">
+        // Firebase Imports
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, addDoc, query, orderBy, getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        document.addEventListener('DOMContentLoaded', async () => {
             const state = {
+                // Firebase
+                db: null,
+                auth: null,
+                userId: 'anonymous', // Default to anonymous
+
+                // Test Phase State
                 testWeight: 40,
                 testTimerId: null,
                 testSeconds: 10,
+
+                // Workout Phase State
                 workoutGripType: '20mm Half-Crimp',
                 workoutWeight: 40,
                 workoutTimerId: null,
@@ -205,8 +249,17 @@
                 liftDuration: 7, // Configurable by user (7-10)
                 restDuration: 180, // 3 minutes for rest between hands and between sets
                 countdown: 0,
-                currentPhase: 'setup', // 'setup', 'lift', 'rest'
-                workoutResults: []
+                currentPhase: 'setup', // 'setup', 'lifting', 'resting', 'complete'
+
+                // Time Tracking
+                workoutStartTime: null,
+                totalWorkoutDuration: 0, // Overall elapsed time for the workout session
+                totalLiftDuration: 0,   // Accumulated time under tension
+                totalRestDuration: 0,   // Accumulated rest time
+
+                // Data Storage
+                currentSessionLifts: [], // Individual lift details for the current session
+                workoutHistorySummaries: [] // Summaries of past workout sessions
             };
 
             // DOM Elements
@@ -222,27 +275,100 @@
             const workoutNumSetsInput = document.getElementById('workout-num-sets');
             const startWorkoutBtn = document.getElementById('start-workout-btn');
             const cancelWorkoutBtn = document.getElementById('cancel-workout-btn');
-            const startNewWorkoutBtn = document.getElementById('start-new-workout-btn'); // Renamed
+            const startNewWorkoutBtn = document.getElementById('start-new-workout-btn');
 
             const workoutSetupDiv = document.getElementById('workout-setup');
             const workoutEngineDiv = document.getElementById('workout-engine');
             const timerStatus = document.getElementById('timer-status');
             const timerCountdown = document.getElementById('timer-countdown');
             const currentSetDisplay = document.getElementById('current-set-display');  
-            const currentHandDisplay = document.getElementById('current-hand-display'); // Renamed
+            const currentHandDisplay = document.getElementById('current-hand-display');
             const setInfo = document.getElementById('set-info');
             const progressRing = document.getElementById('timer-progress-ring');
-            const resultsTableBody = document.getElementById('results-table-body');
+            
+            const currentSessionTableBody = document.getElementById('current-session-table-body'); // Changed ID
+            const historyTableBody = document.getElementById('history-table-body'); // New for history summaries
+
             const upNextDisplay = document.getElementById('up-next-display');  
             const upNextText = document.getElementById('up-next-text');  
             const setActionsDiv = document.getElementById('set-actions');
+            const totalTimesDisplay = document.getElementById('total-times-display');
+            const totalWorkoutTimeSpan = document.getElementById('total-workout-time');
+            const totalLiftTimeSpan = document.getElementById('total-lift-time');
+            const totalRestTimeSpan = document.getElementById('total-rest-time');
 
             const ringCircumference = 2 * Math.PI * 45;  
 
-            // Utility function to update the progress ring
+            // --- Firebase Initialization and Authentication ---
+            let app;
+            const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+            const firebaseConfigString = typeof __firebase_config !== 'undefined' ? __firebase_config : '{}';
+            let firebaseConfig = {}; // Initialize to empty object
+
+            try {
+                firebaseConfig = JSON.parse(firebaseConfigString);
+            } catch (e) {
+                console.error("Error parsing __firebase_config:", e);
+                // firebaseConfig remains empty object, will trigger the warning below
+            }
+
+            if (firebaseConfig && firebaseConfig.projectId) { // Check if projectId exists
+                try {
+                    app = initializeApp(firebaseConfig);
+                    state.db = getFirestore(app);
+                    state.auth = getAuth(app);
+
+                    // Sign in with custom token or anonymously
+                    if (typeof __initial_auth_token !== 'undefined') {
+                        await signInWithCustomToken(state.auth, __initial_auth_token);
+                    } else {
+                        await signInAnonymously(state.auth);
+                    }
+
+                    // Listen for auth state changes to get userId
+                    onAuthStateChanged(state.auth, (user) => {
+                        if (user) {
+                            state.userId = user.uid;
+                            console.log("Firebase user ID:", state.userId);
+                            loadWorkoutHistory(); // Load history after user is authenticated
+                        } else {
+                            // This branch means user signed out or initial anonymous sign-in failed (unlikely if initApp succeeded)
+                            // If user explicitly signs out, userId will be null.
+                            state.userId = crypto.randomUUID(); // Fallback for edge cases
+                            console.log("User not authenticated, using random ID:", state.userId);
+                            // Do not load history here if not authenticated, as it depends on user.uid
+                        }
+                    });
+                } catch (error) {
+                    console.error("Error during Firebase initialization or authentication:", error);
+                    historyTableBody.innerHTML = `<tr><td colspan="8" class="px-6 py-4 whitespace-nowrap text-sm text-red-600 text-center">Error setting up Firebase: ${error.message}. Cloud persistence will not be available.</td></tr>`;
+                    state.userId = crypto.randomUUID(); // Fallback for local operations
+                }
+            } else {
+                console.warn("Firebase config is missing projectId or is empty. Cloud persistence will not be available.");
+                historyTableBody.innerHTML = `<tr><td colspan="8" class="px-6 py-4 whitespace-nowrap text-sm text-yellow-600 text-center">Cloud persistence not available. Firebase project ID missing from configuration.</td></tr>`;
+                state.userId = crypto.randomUUID(); // Ensure local operations still have a user ID
+            }
+
+            // Initial render calls, as Firebase init is async.
+            renderCurrentSessionLifts();
+            // Initial history display: set a placeholder, loadHistory will fill it or keep placeholder if Firebase not active.
+            if (!state.db) { // If Firebase init failed, show immediate non-loading message for history
+                historyTableBody.innerHTML = `<tr><td colspan="8" class="px-6 py-4 whitespace-nowrap text-sm text-slate-500 text-center">Cloud persistence not available. History cannot be loaded.</td></tr>`;
+            } else { // Otherwise, Firebase is attempting to initialize, so show loading
+                historyTableBody.innerHTML = `<tr><td colspan="8" class="px-6 py-4 whitespace-nowrap text-sm text-slate-500 text-center">Loading workout history...</td></tr>`;
+            }
+
+            // --- Utility Functions ---
             function updateRing(percent) {
                 const offset = ringCircumference - (percent / 100) * ringCircumference;
                 progressRing.style.strokeDashoffset = offset;
+            }
+
+            function formatTime(seconds) {
+                const minutes = Math.floor(seconds / 60);
+                const remainingSeconds = Math.floor(seconds % 60);
+                return `${minutes}m ${remainingSeconds}s`;
             }
 
             // --- Weight Test Logic ---
@@ -277,9 +403,10 @@
                 // Hide setup, show engine
                 workoutSetupDiv.classList.add('hidden');
                 workoutEngineDiv.classList.remove('hidden');
-                setActionsDiv.classList.add('hidden'); // Ensure these are hidden at start of a set
+                setActionsDiv.classList.add('hidden'); 
                 cancelWorkoutBtn.classList.remove('hidden');
                 upNextDisplay.classList.add('hidden');
+                totalTimesDisplay.classList.add('hidden'); // Hide total times until workout complete
 
                 // Update state from inputs
                 state.workoutGripType = workoutGripTypeInput.value;
@@ -287,11 +414,15 @@
                 state.maxSets = parseInt(workoutNumSetsInput.value);
                 state.liftDuration = parseInt(workoutLiftDurationInput.value);
 
-                // Reset for a new workout session (if starting from scratch)
-                if (state.currentSet === 1 && state.currentLiftHandIndex === 0) {
-                    state.workoutResults = []; // Clear results if starting a new full workout
-                    renderLoggedResults(); // Update table
-                }
+                // Reset for a new workout session
+                state.currentSet = 1;
+                state.currentLiftHandIndex = 0;
+                state.currentSessionLifts = []; // Clear individual lifts from previous session
+                state.totalLiftDuration = 0;
+                state.totalRestDuration = 0;
+                state.workoutStartTime = Date.now(); // Start tracking overall workout time
+
+                renderCurrentSessionLifts(); // Clear the current session table
 
                 state.currentPhase = 'lifting';
                 runWorkoutPhase(); // Start the first lift
@@ -317,9 +448,7 @@
                     progressRing.classList.remove('text-green-500');
                     progressRing.classList.add('text-teal-500');
                     totalPhaseDuration = state.liftDuration;
-                    // Reset stroke-dashoffset for immediate update of the ring
-                    progressRing.style.strokeDashoffset = ringCircumference;
-
+                    progressRing.style.strokeDashoffset = ringCircumference; // Reset ring
                 } else if (state.currentPhase === 'resting') {
                     state.countdown = state.restDuration;
                     timerStatus.textContent = "REST";
@@ -328,14 +457,19 @@
                     progressRing.classList.remove('text-teal-500');
                     progressRing.classList.add('text-green-500');
                     totalPhaseDuration = state.restDuration;
-                    // Reset stroke-dashoffset for immediate update of the ring
-                    progressRing.style.strokeDashoffset = ringCircumference;
+                    progressRing.style.strokeDashoffset = ringCircumference; // Reset ring
                 }
                 
-                // Update "Up Next" display
-                updateUpNextDisplay();
+                updateUpNextDisplay(); // Update "Up Next" display
 
                 state.workoutTimerId = setInterval(() => {
+                    // Update total durations
+                    if (state.currentPhase === 'lifting') {
+                        state.totalLiftDuration++;
+                    } else if (state.currentPhase === 'resting') {
+                        state.totalRestDuration++;
+                    }
+                    
                     if (state.countdown < 0) {
                         handlePhaseEnd();
                     } else {
@@ -391,22 +525,22 @@
                     setNumber: state.currentSet,
                     repDuration: state.liftDuration // This is the planned duration
                 };
-                state.workoutResults.push(newEntry);
-                renderLoggedResults();
+                state.currentSessionLifts.push(newEntry);
+                renderCurrentSessionLifts();
             }
 
-            function renderLoggedResults() {
-                resultsTableBody.innerHTML = '';  
-                if (state.workoutResults.length === 0) {
-                    resultsTableBody.innerHTML = `
+            function renderCurrentSessionLifts() {
+                currentSessionTableBody.innerHTML = '';  
+                if (state.currentSessionLifts.length === 0) {
+                    currentSessionTableBody.innerHTML = `
                         <tr>
-                            <td colspan="6" class="px-6 py-4 whitespace-nowrap text-sm text-slate-500 text-center">No workouts logged yet.</td>
+                            <td colspan="6" class="px-6 py-4 whitespace-nowrap text-sm text-slate-500 text-center">No lifts logged in current session.</td>
                         </tr>
                     `;
                     return;
                 }
-                state.workoutResults.forEach(result => {
-                    const row = resultsTableBody.insertRow();
+                state.currentSessionLifts.forEach(result => {
+                    const row = currentSessionTableBody.insertRow();
                     row.className = 'hover:bg-slate-50';
                     row.innerHTML = `
                         <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-slate-900">${result.date}</td>
@@ -424,10 +558,10 @@
                 let nextText = '';
 
                 if (state.currentPhase === 'lifting' && state.currentLiftHandIndex === 0) { // Currently lifting Right hand
-                    nextText = `Rest (${state.restDuration}s), then Set ${state.currentSet}: Left Hand`;
+                    nextText = `Rest (${formatTime(state.restDuration)}), then Set ${state.currentSet}: Left Hand`;
                 } else if (state.currentPhase === 'lifting' && state.currentLiftHandIndex === 1) { // Currently lifting Left hand
                     if (state.currentSet < state.maxSets) {
-                        nextText = `Rest (${state.restDuration}s), then Set ${state.currentSet + 1}: Right Hand`;
+                        nextText = `Rest (${formatTime(state.restDuration)}), then Set ${state.currentSet + 1}: Right Hand`;
                     } else {
                         nextText = "Workout will be complete!";
                     }
@@ -445,36 +579,143 @@
                 upNextText.textContent = nextText;
             }
 
-            function showWorkoutComplete() {
+            async function showWorkoutComplete() {
                 clearInterval(state.workoutTimerId);
+                state.currentPhase = 'complete';
+
+                // Calculate total workout time
+                state.totalWorkoutDuration = (Date.now() - state.workoutStartTime) / 1000;
+
                 timerStatus.textContent = "Workout Complete!";
                 timerCountdown.textContent = "🎉";
                 updateRing(100);
                 currentHandDisplay.textContent = `All ${state.maxSets} Sets Completed!`;
-                setInfo.textContent = ""; // Clear set info
-                upNextDisplay.classList.add('hidden'); // Hide up next when workout is done
+                setInfo.textContent = ""; 
+                upNextDisplay.classList.add('hidden');
                 
-                setActionsDiv.classList.remove('hidden'); // Show "Start New Workout" button
-                cancelWorkoutBtn.classList.add('hidden'); // Hide cancel
+                // Display total times
+                totalWorkoutTimeSpan.textContent = formatTime(state.totalWorkoutDuration);
+                totalLiftTimeSpan.textContent = formatTime(state.totalLiftDuration);
+                totalRestTimeSpan.textContent = formatTime(state.totalRestDuration);
+                totalTimesDisplay.classList.remove('hidden');
+
+                setActionsDiv.classList.remove('hidden');
+                cancelWorkoutBtn.classList.add('hidden');
+
+                // Save workout summary to Firestore
+                if (state.db && state.userId !== 'anonymous') { // Only attempt to save if Firebase is initialized and authenticated
+                    try {
+                        const workoutSummary = {
+                            date: new Date().toISOString(), // ISO string for easy sorting/display
+                            gripType: state.workoutGripType,
+                            weight: state.workoutWeight,
+                            liftDurationPerHold: state.liftDuration,
+                            numSets: state.maxSets,
+                            totalLiftDuration: state.totalLiftDuration,
+                            totalRestDuration: state.totalRestDuration,
+                            totalWorkoutDuration: state.totalWorkoutDuration,
+                            userId: state.userId // Store userId for security rules
+                        };
+                        const workoutsCollectionRef = collection(state.db, `artifacts/${appId}/users/${state.userId}/max_weight_workout_summaries`);
+                        await addDoc(workoutsCollectionRef, workoutSummary);
+                        console.log("Workout summary saved successfully!");
+                        loadWorkoutHistory(); // Refresh history after saving new workout
+                    } catch (e) {
+                        console.error("Error saving workout summary:", e);
+                        // Inform the user about the saving error
+                    }
+                } else {
+                    console.warn("Skipping workout summary save: Firebase not initialized or user not authenticated.");
+                    // Optionally, inform the user on the UI that data could not be saved.
+                }
             }
 
             function resetWorkoutForNewSession() {
                 clearInterval(state.workoutTimerId);
                 state.currentSet = 1;
                 state.currentLiftHandIndex = 0;
-                state.currentPhase = 'setup'; // Go back to setup config
-                state.workoutResults = []; // Clear previous results
+                state.currentPhase = 'setup'; 
+                state.currentSessionLifts = [];
+                state.totalLiftDuration = 0;
+                state.totalRestDuration = 0;
+                state.workoutStartTime = null;
 
                 workoutSetupDiv.classList.remove('hidden');
                 workoutEngineDiv.classList.add('hidden');
                 updateRing(0);
-                timerStatus.textContent = "LIFT!"; // Reset status
-                timerCountdown.textContent = state.liftDuration; // Reset countdown display
+                timerStatus.textContent = "LIFT!"; 
+                timerCountdown.textContent = state.liftDuration; 
                 setActionsDiv.classList.add('hidden');
-                cancelWorkoutBtn.classList.remove('hidden'); // Show cancel for the new session
-                
-                renderLoggedResults(); // Clear table display
+                cancelWorkoutBtn.classList.remove('hidden'); 
+                totalTimesDisplay.classList.add('hidden'); // Hide total times
+
+                renderCurrentSessionLifts(); // Clear current session table
                 updateUpNextDisplay(); // Clear up next display
+            }
+
+            // --- Firestore Loading and Display of Workout History ---
+            async function loadWorkoutHistory() {
+                // Only load if Firebase is ready and user is authenticated with a proper UID
+                if (!state.db || !state.userId || state.userId === 'anonymous') { 
+                    console.warn("Firebase not ready to load history, or user is anonymous placeholder. Skipping history load.");
+                    // If firebase was not initialized, the initial placeholder message already exists.
+                    // Otherwise, set a specific message if it was initialized but auth is not resolved yet for the user.
+                    if (state.db) {
+                        historyTableBody.innerHTML = `<tr><td colspan="8" class="px-6 py-4 whitespace-nowrap text-sm text-slate-500 text-center">Waiting for user authentication to load history...</td></tr>`;
+                    }
+                    return;
+                }
+                
+                historyTableBody.innerHTML = `<tr><td colspan="8" class="px-6 py-4 whitespace-nowrap text-sm text-slate-500 text-center">Loading workout history...</td></tr>`;
+
+                try {
+                    const workoutsCollectionRef = collection(state.db, `artifacts/${appId}/users/${state.userId}/max_weight_workout_summaries`);
+                    // Note: orderBy is commented out as per instructions, but would typically be used for sorting by date
+                    const q = query(workoutsCollectionRef); // , orderBy("date", "desc") 
+                    const querySnapshot = await getDocs(q);
+                    
+                    state.workoutHistorySummaries = [];
+                    querySnapshot.forEach((doc) => {
+                        state.workoutHistorySummaries.push(doc.data());
+                    });
+                    
+                    // Sort by date in descending order manually since orderBy is restricted
+                    state.workoutHistorySummaries.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+                    renderWorkoutHistory();
+                } catch (e) {
+                    console.error("Error loading workout history:", e);
+                    historyTableBody.innerHTML = `<tr><td colspan="8" class="px-6 py-4 whitespace-nowrap text-sm text-red-600 text-center">Error loading history: ${e.message}.</td></tr>`;
+                }
+            }
+
+            function renderWorkoutHistory() {
+                historyTableBody.innerHTML = '';
+                if (state.workoutHistorySummaries.length === 0) {
+                    historyTableBody.innerHTML = `
+                        <tr>
+                            <td colspan="8" class="px-6 py-4 whitespace-nowrap text-sm text-slate-500 text-center">No past workouts logged yet.</td>
+                        </tr>
+                    `;
+                    return;
+                }
+                state.workoutHistorySummaries.forEach(summary => {
+                    const row = historyTableBody.insertRow();
+                    row.className = 'hover:bg-slate-50';
+                    const workoutDate = new Date(summary.date);
+                    const formattedDate = workoutDate.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+                    
+                    row.innerHTML = `
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-slate-900">${formattedDate}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-600">${summary.gripType}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-600">${summary.weight}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-600">${summary.numSets}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-600">${summary.liftDurationPerHold}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-600">${formatTime(summary.totalWorkoutDuration)}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-600">${formatTime(summary.totalLiftDuration)}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-600">${formatTime(summary.totalRestDuration)}</td>
+                    `;
+                });
             }
             
             // Event Listeners
@@ -482,10 +723,7 @@
             saveWeightBtn.addEventListener('click', saveWeight);
             startWorkoutBtn.addEventListener('click', startWorkoutFlow);
             cancelWorkoutBtn.addEventListener('click', resetWorkoutForNewSession);
-            startNewWorkoutBtn.addEventListener('click', resetWorkoutForNewSession); // Handle start new workout button
-
-            // Initial render of logged results
-            renderLoggedResults();
+            startNewWorkoutBtn.addEventListener('click', resetWorkoutForNewSession);
         });
     </script>
 </body>
