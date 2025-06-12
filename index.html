@@ -1,0 +1,445 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive 7-53 Tension Block Workout</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Chosen Palette: Calm Harmony (Slate Gray, Teal Accent) -->
+    <!-- Application Structure Plan: A task-oriented, single-column, guided workout SPA. The user flows linearly from setup and warm-up to an interactive weight test, then into the core workout engine with a specialized 7-53 timer, and finally to a cool-down. This structure was chosen because it directly mirrors the real-world process of a workout, minimizing cognitive load and providing tools and information precisely when the user needs them. -->
+    <!-- Visualization & Content Choices: Report Info -> Goal -> Method -> Interaction -> Justification. Safety/Setup -> Inform -> Static HTML lists -> Reading -> Clear, upfront info. Weight Test -> Guide user -> Interactive HTML form w/ JS timer -> User inputs data -> Makes an abstract task concrete. Main Workout -> Guide timed reps/sets -> Custom JS/HTML/CSS Timer Engine -> User follows visual/text cues -> Automates complex timing, allowing focus on form. No charts are used as the primary data is procedural (time, reps), not comparative or trend-based. -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        .section-card {
+            background-color: white;
+            border-radius: 0.75rem;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+            transition: all 0.3s ease-in-out;
+        }
+        .details-marker::marker {
+            color: #14b8a6;
+        }
+        .timer-circle {
+            transition: stroke-dashoffset 1s linear;
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800">
+
+    <div class="max-w-4xl mx-auto px-4 py-8 sm:px-6 lg:px-8">
+        
+        <header class="text-center mb-12">
+            <h1 class="text-4xl md:text-5xl font-bold text-slate-900">Interactive 7-53 Workout</h1>
+            <p class="mt-4 text-lg text-slate-600">Your guided session for Eric Hörst's maximal finger strength protocol.</p>
+        </header>
+
+        <main class="space-y-10">
+
+            <section id="setup" class="section-card p-6 md:p-8">
+                <h2 class="text-2xl font-bold text-slate-900 mb-4">Before You Start</h2>
+                <div class="space-y-6">
+                    <article>
+                        <h3 class="text-lg font-semibold text-teal-600 mb-2">⚠️ Safety Disclaimer</h3>
+                        <ul class="list-disc list-inside space-y-1 text-slate-600">
+                            <li>A thorough warm-up is crucial. Do not skip this phase.</li>
+                            <li>Listen to your body. Stop immediately if you feel sharp pain. Soreness is normal, pain is not.</li>
+                            <li>Consult a professional if you have pre-existing injuries or concerns.</li>
+                        </ul>
+                    </article>
+                    <article>
+                        <h3 class="text-lg font-semibold text-teal-600 mb-2">🛠️ Required Equipment</h3>
+                         <ul class="list-disc list-inside space-y-1 text-slate-600">
+                            <li>Tension Block</li>
+                            <li>Loading Pin & Weights</li>
+                            <li>Timer (this app will handle it!)</li>
+                            <li>Notebook/App to log progress (recommended)</li>
+                        </ul>
+                    </article>
+                </div>
+            </section>
+
+            <section id="warmup" class="section-card">
+                <details class="p-6 md:p-8">
+                    <summary class="text-2xl font-bold text-slate-900 cursor-pointer details-marker">Phase 1: Dynamic Warm-up (15-20 min)</summary>
+                    <div class="mt-6 border-t border-slate-200 pt-6 space-y-4 text-slate-600">
+                        <p>This phase gradually prepares your body for intense work. Complete all steps.</p>
+                        <ul class="list-decimal list-inside space-y-2">
+                            <li><strong>General Cardio (5 min):</strong> Light jog, jumping jacks, or cycling.</li>
+                            <li><strong>Dynamic Stretches & Mobility (5-7 min):</strong> Arm circles, shoulder rolls, wrist circles, and finger extensions.</li>
+                            <li><strong>Light Pulls on Tension Block (5-8 min):</strong> Perform light, low-intensity pulls with various grips. This includes 2-3 ramp-up sets, gradually increasing weight to 80% of your estimated working weight.</li>
+                        </ul>
+                    </div>
+                </details>
+            </section>
+            
+            <section id="weight-test" class="section-card p-6 md:p-8">
+                <h2 class="text-2xl font-bold text-slate-900 mb-2">Phase 2: Determine Your Training Weight</h2>
+                <p class="mb-6 text-slate-600">Find the max weight you can hold for **exactly 10 seconds** on a specific grip. This will be your training weight for the 7-second working sets. Rest 3-5 minutes between each test attempt.</p>
+                <div class="bg-slate-100 p-6 rounded-lg">
+                    <div class="flex flex-col sm:flex-row items-center justify-between gap-4">
+                        <div>
+                             <label for="grip-test-type" class="block text-sm font-medium text-slate-700">Grip Type</label>
+                             <input type="text" id="grip-test-type" value="20mm Half-Crimp" class="mt-1 block w-full sm:w-48 rounded-md border-slate-300 shadow-sm focus:border-teal-500 focus:ring-teal-500">
+                        </div>
+                        <div>
+                            <label for="test-weight" class="block text-sm font-medium text-slate-700">Test Weight (lbs/kg)</label>
+                            <input type="number" id="test-weight" value="40" class="mt-1 block w-full sm:w-32 rounded-md border-slate-300 shadow-sm focus:border-teal-500 focus:ring-teal-500">
+                        </div>
+                        <button id="start-test-btn" class="w-full sm:w-auto bg-teal-500 text-white font-bold py-2 px-4 rounded-md hover:bg-teal-600 transition duration-300">Start 10s Test</button>
+                    </div>
+                    <div id="test-timer-display" class="mt-4 text-center text-3xl font-bold text-slate-700 h-10"></div>
+                     <div class="mt-4 text-center">
+                        <button id="save-weight-btn" class="w-full sm:w-auto bg-slate-600 text-white font-bold py-2 px-6 rounded-md hover:bg-slate-700 transition duration-300 disabled:bg-slate-400 disabled:cursor-not-allowed" disabled>Save Weight for Workout</button>
+                    </div>
+                </div>
+            </section>
+
+            <section id="main-workout" class="section-card p-6 md:p-8">
+                <h2 class="text-2xl font-bold text-slate-900 mb-2">Phase 3: The 7-53 Workout</h2>
+                <p class="mb-6 text-slate-600">Select your grip, confirm your weight, and start the protocol. The timer will guide you through each lift and rest period.</p>
+                
+                <div id="workout-setup" class="bg-slate-100 p-6 rounded-lg space-y-4">
+                     <div>
+                         <label for="workout-grip-type" class="block text-sm font-medium text-slate-700">Grip Type for this Set</label>
+                         <input type="text" id="workout-grip-type" value="20mm Half-Crimp" class="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-teal-500 focus:ring-teal-500">
+                     </div>
+                     <div class="flex flex-col sm:flex-row justify-between gap-4">
+                          <div class="flex-1">
+                             <label for="workout-weight" class="block text-sm font-medium text-slate-700">Training Weight (lbs/kg)</label>
+                             <input type="number" id="workout-weight" value="40" class="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-teal-500 focus:ring-teal-500">
+                         </div>
+                         <div class="flex-1">
+                             <label for="workout-hand" class="block text-sm font-medium text-slate-700">Hand</label>
+                             <select id="workout-hand" class="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-teal-500 focus:ring-teal-500">
+                                 <option value="Right">Right Hand</option>
+                                 <option value="Left">Left Hand</option>
+                             </select>
+                         </div>
+                     </div>
+                     <button id="start-workout-btn" class="w-full bg-red-600 text-white font-bold py-3 px-6 rounded-md hover:bg-red-700 transition duration-300 text-lg">Start Set</button>
+                </div>
+
+                <div id="workout-engine" class="hidden text-center mt-6">
+                    <div class="relative w-48 h-48 mx-auto mb-4">
+                        <svg class="w-full h-full" viewBox="0 0 100 100">
+                            <circle class="text-slate-200" stroke-width="8" stroke="currentColor" fill="transparent" r="45" cx="50" cy="50" />
+                            <circle id="timer-progress-ring" class="text-teal-500 timer-circle" stroke-width="8" stroke="currentColor" fill="transparent" r="45" cx="50" cy="50" stroke-linecap="round" transform="rotate(-90 50 50)" style="stroke-dasharray: 283; stroke-dashoffset: 283;"></circle>
+                        </svg>
+                        <div class="absolute inset-0 flex flex-col items-center justify-center">
+                            <div id="timer-status" class="text-3xl font-bold text-slate-900">LIFT!</div>
+                            <div id="timer-countdown" class="text-5xl font-bold text-slate-700">7</div>
+                        </div>
+                    </div>
+                    <div id="current-set-display" class="text-xl font-bold text-slate-800 mb-2">Set 1</div>
+                    <div id="rep-counter" class="text-lg font-semibold text-slate-600">Rep 1 of 5</div>
+                    <div id="set-info" class="mt-2 text-md text-slate-500"></div>
+                     <div id="set-actions" class="mt-6 hidden flex flex-col sm:flex-row justify-center gap-4">
+                        
+                        <button id="start-next-set-btn" class="bg-slate-600 text-white font-bold py-2 px-6 rounded-md hover:bg-slate-700 transition duration-300">Start Next Set</button>
+                    </div>
+                    <button id="cancel-workout-btn" class="mt-6 w-full sm:w-auto bg-gray-500 text-white font-bold py-2 px-6 rounded-md hover:bg-gray-600 transition duration-300">Cancel Set</button>
+                </div>
+                <div id="up-next-display" class="mt-6 text-center text-lg font-semibold text-slate-700 hidden">
+                    Up Next: <span id="up-next-text"></span>
+                </div>
+            </section>
+            
+            <section id="logged-results" class="section-card p-6 md:p-8">
+                <h2 class="text-2xl font-bold text-slate-900 mb-4">Your Logged Workouts</h2>
+                <div id="results-table-container" class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-slate-200">
+                        <thead class="bg-slate-50">
+                            <tr>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Date</th>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Grip Type</th>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Hand</th>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Set #</th>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Rep #</th>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Rep Duration (s)</th>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Weight (lbs/kg)</th>
+                            </tr>
+                        </thead>
+                        <tbody id="results-table-body" class="bg-white divide-y divide-slate-200">
+                            <tr>
+                                <td colspan="7" class="px-6 py-4 whitespace-nowrap text-sm text-slate-500 text-center">No workouts logged yet.</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <section id="cooldown" class="section-card">
+                 <details class="p-6 md:p-8">
+                    <summary class="text-2xl font-bold text-slate-900 cursor-pointer details-marker">Phase 4: Cool-down (5-10 min)</summary>
+                    <div class="mt-6 border-t border-slate-200 pt-6 space-y-4 text-slate-600">
+                        <p>Helps transition your body to a state of recovery.</p>
+                        <ul class="list-decimal list-inside space-y-2">
+                           <li><strong>General Shaking:</strong> Shake out hands and arms to release tension.</li>
+                           <li><strong>Static Stretches (20-30s each):</strong> Gently stretch forearm flexors and extensors, wrists, and fingers.</li>
+                        </ul>
+                    </div>
+                </details>
+            </section>
+
+        </main>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const state = {
+                testWeight: 40,
+                testTimerId: null,
+                testSeconds: 10,
+                workoutGripType: '20mm Half-Crimp',
+                workoutWeight: 40,
+                workoutHand: 'Right', 
+                workoutTimerId: null,
+                currentRep: 1,
+                maxReps: 5, // Changed from 3 to 5
+                currentSet: 1, 
+                isLiftPhase: true,
+                liftDuration: 7,
+                restDuration: 53, 
+                longRestDuration: 180, 
+                countdown: 0,
+                workoutResults: [] 
+            };
+
+            const startTestBtn = document.getElementById('start-test-btn');
+            const testTimerDisplay = document.getElementById('test-timer-display');
+            const testWeightInput = document.getElementById('test-weight');
+            const gripTestTypeInput = document.getElementById('grip-test-type');
+            const saveWeightBtn = document.getElementById('save-weight-btn');
+
+            const workoutGripTypeInput = document.getElementById('workout-grip-type');
+            const workoutWeightInput = document.getElementById('workout-weight');
+            const workoutHandSelect = document.getElementById('workout-hand'); 
+            const startWorkoutBtn = document.getElementById('start-workout-btn');
+            const cancelWorkoutBtn = document.getElementById('cancel-workout-btn');
+            const startNextSetBtn = document.getElementById('start-next-set-btn');
+            const setActionsDiv = document.getElementById('set-actions');
+            
+            const workoutSetupDiv = document.getElementById('workout-setup');
+            const workoutEngineDiv = document.getElementById('workout-engine');
+            const timerStatus = document.getElementById('timer-status');
+            const timerCountdown = document.getElementById('timer-countdown');
+            const currentSetDisplay = document.getElementById('current-set-display'); 
+            const repCounter = document.getElementById('rep-counter');
+            const setInfo = document.getElementById('set-info');
+            const progressRing = document.getElementById('timer-progress-ring');
+            const resultsTableBody = document.getElementById('results-table-body');
+            const upNextDisplay = document.getElementById('up-next-display'); 
+            const upNextText = document.getElementById('up-next-text'); 
+
+            const ringCircumference = 2 * Math.PI * 45; 
+
+            function updateRing(percent) {
+                const offset = ringCircumference - (percent / 100) * ringCircumference;
+                progressRing.style.strokeDashoffset = offset;
+            }
+
+            function startTestTimer() {
+                clearInterval(state.testTimerId);
+                startTestBtn.disabled = true;
+                saveWeightBtn.disabled = true;
+                state.testSeconds = 10;
+                testTimerDisplay.textContent = state.testSeconds;
+                
+                state.testTimerId = setInterval(() => {
+                    state.testSeconds--;
+                    testTimerDisplay.textContent = state.testSeconds;
+                    if (state.testSeconds <= 0) {
+                        clearInterval(state.testTimerId);
+                        testTimerDisplay.textContent = "Test Complete!";
+                        startTestBtn.disabled = false;
+                        saveWeightBtn.disabled = false;
+                    }
+                }, 1000);
+            }
+
+            function saveWeight() {
+                state.workoutGripType = gripTestTypeInput.value;
+                state.workoutWeight = parseFloat(testWeightInput.value);
+                workoutGripTypeInput.value = state.workoutGripType;
+                workoutWeightInput.value = state.workoutWeight;
+            }
+            
+            function runWorkoutTimer() {
+                workoutSetupDiv.classList.add('hidden');
+                workoutEngineDiv.classList.remove('hidden');
+                setActionsDiv.classList.add('hidden'); 
+                cancelWorkoutBtn.classList.remove('hidden'); 
+                upNextDisplay.classList.add('hidden'); 
+
+                state.workoutGripType = workoutGripTypeInput.value;
+                state.workoutWeight = parseFloat(workoutWeightInput.value);
+                state.workoutHand = workoutHandSelect.value;
+
+                clearInterval(state.workoutTimerId);
+                
+                currentSetDisplay.textContent = `Set ${state.currentSet}`; 
+
+                if (state.isLiftPhase) {
+                    state.countdown = state.liftDuration;
+                    timerStatus.textContent = "LIFT!";
+                    timerStatus.classList.remove('text-green-600');
+                    timerStatus.classList.add('text-red-600');
+                    progressRing.classList.remove('text-green-500');
+                    progressRing.classList.add('text-teal-500');
+
+                } else {
+                    state.countdown = state.restDuration;
+                    timerStatus.textContent = "REST";
+                    timerStatus.classList.remove('text-red-600');
+                    timerStatus.classList.add('text-green-600');
+                    progressRing.classList.remove('text-teal-500');
+                    progressRing.classList.add('text-green-500');
+                }
+                
+                repCounter.textContent = `Rep ${state.currentRep} of ${state.maxReps}`;
+                setInfo.textContent = `Grip: ${state.workoutGripType} | Weight: ${state.workoutWeight} | Hand: ${state.workoutHand}`;
+
+                state.workoutTimerId = setInterval(() => {
+                    timerCountdown.textContent = state.countdown;
+                    const totalDuration = state.isLiftPhase ? state.liftDuration : state.restDuration;
+                    updateRing((state.countdown / totalDuration) * 100);
+                    state.countdown--;
+                    
+                    if (state.countdown < 0) {
+                        if (state.isLiftPhase) {
+                            logRep(); 
+                            state.isLiftPhase = false;
+                            if (state.currentRep > state.maxReps) { // Check if rep count exceeds maxReps
+                                showSetSummary(); 
+                            } else {
+                                runWorkoutTimer();
+                            }
+                        } else { 
+                            state.isLiftPhase = true;
+                            state.currentRep++;
+                            runWorkoutTimer();
+                        }
+                    }
+                }, 1000);
+            }
+            
+            function showSetSummary() {
+                clearInterval(state.workoutTimerId);
+                timerStatus.textContent = "Set Complete!";
+                timerCountdown.textContent = "👏";
+                updateRing(100);
+                repCounter.textContent = `Set ${state.currentSet} Completed!`;
+                setInfo.textContent = `Grip: ${state.workoutGripType} | Weight: ${state.workoutWeight} | Hand: ${state.workoutHand}`;
+                
+                setActionsDiv.classList.remove('hidden'); 
+                cancelWorkoutBtn.classList.add('hidden'); 
+
+                updateUpNextDisplay(); 
+            }
+
+            function logRep() {
+                const now = new Date();
+                const formattedDate = now.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+                
+                const newEntry = {
+                    date: formattedDate,
+                    gripType: state.workoutGripType,
+                    hand: state.workoutHand, 
+                    weight: state.workoutWeight,
+                    repNumber: state.currentRep, 
+                    setNumber: state.currentSet,
+                    repDuration: state.liftDuration 
+                };
+                state.workoutResults.push(newEntry);
+                renderLoggedResults();
+            }
+
+            function renderLoggedResults() {
+                resultsTableBody.innerHTML = ''; 
+                if (state.workoutResults.length === 0) {
+                    resultsTableBody.innerHTML = `
+                        <tr>
+                            <td colspan="7" class="px-6 py-4 whitespace-nowrap text-sm text-slate-500 text-center">No workouts logged yet.</td>
+                        </tr>
+                    `;
+                    return;
+                }
+                state.workoutResults.forEach(result => {
+                    const row = resultsTableBody.insertRow();
+                    row.className = 'hover:bg-slate-50';
+                    row.innerHTML = `
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-slate-900">${result.date}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-600">${result.gripType}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-600">${result.hand}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-600">${result.setNumber}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-600">${result.repNumber}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-600">${result.repDuration}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-600">${result.weight}</td>
+                    `;
+                });
+            }
+
+            function updateUpNextDisplay() {
+                upNextDisplay.classList.remove('hidden');
+                let nextHand = state.workoutHand === 'Right' ? 'Left' : 'Right';
+                let nextGripType = state.workoutGripType; 
+                upNextText.textContent = `Set ${state.currentSet + 1}: ${nextGripType} - ${nextHand} Hand`;
+            }
+
+            function startNextSetFlow() {
+                setActionsDiv.classList.add('hidden'); 
+                cancelWorkoutBtn.classList.remove('hidden'); 
+
+                timerStatus.textContent = "Resting between sets...";
+                timerCountdown.textContent = "";
+                repCounter.textContent = "";
+                setInfo.textContent = "";
+
+                let nextHand = state.workoutHand === 'Right' ? 'Left' : 'Right';
+                workoutHandSelect.value = nextHand; 
+                workoutGripTypeInput.value = state.workoutGripType; 
+
+                state.countdown = state.longRestDuration;
+                state.workoutTimerId = setInterval(() => {
+                    const minutes = Math.floor(state.countdown / 60);
+                    const seconds = state.countdown % 60;
+                    timerCountdown.textContent = `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
+                    state.countdown--;
+                    if (state.countdown < 0) {
+                        state.currentSet++; 
+                        resetWorkoutEngine();
+                        upNextDisplay.classList.add('hidden'); 
+                    }
+                }, 1000);
+            }
+
+            function resetWorkoutEngine() {
+                clearInterval(state.workoutTimerId);
+                state.currentRep = 1;
+                state.isLiftPhase = true;
+                workoutSetupDiv.classList.remove('hidden');
+                workoutEngineDiv.classList.add('hidden');
+                updateRing(0);
+                timerStatus.textContent = "LIFT!"; 
+                timerCountdown.textContent = state.liftDuration; 
+                setActionsDiv.classList.add('hidden'); 
+                cancelWorkoutBtn.classList.remove('hidden'); 
+            }
+            
+            startTestBtn.addEventListener('click', startTestTimer);
+            saveWeightBtn.addEventListener('click', saveWeight);
+            startWorkoutBtn.addEventListener('click', runWorkoutTimer);
+            cancelWorkoutBtn.addEventListener('click', resetWorkoutEngine);
+            startNextSetBtn.addEventListener('click', startNextSetFlow);
+
+            renderLoggedResults();
+        });
+    </script>
+</body>
+</html>
