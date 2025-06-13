@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Workout Protocols Main Page</title>
+    <title>Workout Protocols Home</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -12,11 +12,16 @@
         body {
             font-family: 'Inter', sans-serif;
         }
-        .section-card {
+        .protocol-card {
             background-color: white;
             border-radius: 0.75rem;
             box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
             transition: all 0.3s ease-in-out;
+            border: 1px solid transparent;
+        }
+        .protocol-card:hover {
+            border-color: #14b8a6; /* Teal accent on hover */
+            transform: translateY(-2px);
         }
     </style>
 </head>
@@ -25,41 +30,66 @@
     <div class="max-w-4xl mx-auto px-4 py-8 sm:px-6 lg:px-8">
         
         <header class="text-center mb-12">
-            <h1 class="text-4xl md:text-5xl font-bold text-slate-900">Workout Protocols</h1>
-            <p class="mt-4 text-lg text-slate-600">Choose a workout protocol to begin your session.</p>
+            <h1 class="text-4xl md:text-5xl font-bold text-slate-900">Climbing Workout Protocols</h1>
+            <p class="mt-4 text-lg text-slate-600">Choose a protocol to start your training session.</p>
         </header>
 
-        <main class="space-y-6">
+        <main class="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
 
-            <section class="section-card p-6 md:p-8">
-                <h2 class="text-2xl font-bold text-slate-900 mb-4">Available Workouts</h2>
-                <ul class="list-disc list-inside space-y-3 text-slate-700 text-lg">
-                    <li>
-                        <a href="roboutcode/crimpin/Crimpin-f1f7612527610d518c3dbad15160aeefd156a07f/7-53.html" class="text-teal-600 hover:text-teal-800 font-semibold transition duration-300">
-                            Interactive 7-53 Tension Block Workout
-                        </a>
-                        <p class="text-sm text-slate-500 mt-1">Guided session for Eric Hörst's maximal finger strength protocol (7-second lifts, 53-second rests).</p>
-                    </li>
-                    <li>
-                        <a href="roboutcode/crimpin/Crimpin-f1f7612527610d518c3dbad15160aeefd156a07f/maxweight.html" class="text-teal-600 hover:text-teal-800 font-semibold transition duration-300">
-                            Interactive Max Weight 7-10 Second Lifts
-                        </a>
-                        <p class="text-sm text-slate-500 mt-1">Your guided session for maximal finger strength protocol (7-10s holds).</p>
-                    </li>
-                    <li>
-                        <a href="roboutcode/crimpin/Crimpin-f1f7612527610d518c3dbad15160aeefd156a07f/classicrepeaters.html" class="text-teal-600 hover:text-teal-800 font-semibold transition duration-300">
-                            Interactive Classic 7/3 Repeaters
-                        </a>
-                        <p class="text-sm text-slate-500 mt-1">Your guided session for strength-endurance and anaerobic capacity.</p>
-                    </li>
-                    <li>
-                        <a href="roboutcode/crimpin/Crimpin-f1f7612527610d518c3dbad15160aeefd156a07f/pinch.html" class="text-teal-600 hover:text-teal-800 font-semibold transition duration-300">
-                            Interactive Pinch Block Lifts
-                        </a>
-                        <p class="text-sm text-slate-500 mt-1">Your guided session for developing isometric pinch strength.</p>
-                    </li>
-                </ul>
-            </section>
+            <!-- Link to Max Weight 7-10 Second Lifts -->
+            <a href="?artifact=max-weight-protocol" class="block">
+                <div class="protocol-card p-6 flex flex-col items-center text-center">
+                    <!-- Icon for Max Weight: A dumbbell, symbolizing heavy lifting/maximal strength -->
+                    <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-16 w-16 text-teal-500 mb-4">
+                        <path d="M14.5 16.5l-3-3L10 14l-3-3"/>
+                        <path d="M15 10l3 3 1-1"/>
+                        <circle cx="7.5" cy="7.5" r="5.5"/>
+                        <path d="M17 17l4 4"/>
+                    </svg>
+                    <h2 class="text-xl font-bold text-slate-900 mb-2">Max Weight 7-10 Second Lifts</h2>
+                    <p class="text-slate-600 text-sm">Focus on maximal force generation with short, intense holds.</p>
+                </div>
+            </a>
+
+            <!-- Link to Tension 'Standard' Repeaters -->
+            <a href="?artifact=tension-repeaters-protocol" class="block">
+                <div class="protocol-card p-6 flex flex-col items-center text-center">
+                    <!-- Icon for Tension Repeaters: A clock or stopwatch, indicating timed intervals and repetition -->
+                    <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-16 w-16 text-teal-500 mb-4">
+                        <circle cx="12" cy="12" r="10"/>
+                        <polyline points="12 6 12 12 16 14"/>
+                    </svg>
+                    <h2 class="text-xl font-bold text-slate-900 mb-2">Tension 'Standard' Repeaters</h2>
+                    <p class="text-slate-600 text-sm">Build strength & endurance with 6s ON / 10s OFF cycles.</p>
+                </div>
+            </a>
+
+            <!-- Link to Pinch Block Lifts -->
+            <a href="?artifact=pinch-block-lifts-protocol" class="block">
+                <div class="protocol-card p-6 flex flex-col items-center text-center">
+                    <!-- Icon for Pinch Block Lifts: A hand grabbing a square/block, representing a pinch grip -->
+                    <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-16 w-16 text-teal-500 mb-4">
+                        <path d="M7 10h1v4h-1c-.5 0-.5 1-1 1H4s.5-1 1-1h1V9c0-.5-.5-1-1-1H4s.5-1 1-1h1c.5 0 .5 1 1 1V6c0-.5-.5-1-1-1H4s.5-1 1-1h1c.5 0 .5 1 1 1V2a2 2 0 0 0-2-2H2a2 2 0 0 0-2 2v20a2 2 0 0 0 2 2h5a2 2 0 0 0 2-2v-4h1v-4h-1z"/>
+                        <path d="M12 20h2v2h-2c-.5 0-.5-1-1-1h-1s.5-1 1-1h1v-2c0-.5-.5-1-1-1h-1s.5-1 1-1h1c.5 0 .5 1 1 1V9a2 2 0 0 0-2-2h-2a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2z"/>
+                        <path d="M17 20h2v2h-2c-.5 0-.5-1-1-1h-1s.5-1 1-1h1v-2c0-.5-.5-1-1-1h-1s.5-1 1-1h1c.5 0 .5 1 1 1V9a2 2 0 0 0-2-2h-2a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2z"/>
+                        <path d="M22 20h2v2h-2c-.5 0-.5-1-1-1h-1s.5-1 1-1h1v-2c0-.5-.5-1-1-1h-1s.5-1 1-1h1c.5 0 .5 1 1 1V9a2 2 0 0 0-2-2h-2a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2z"/>
+                    </svg>
+                    <h2 class="text-xl font-bold text-slate-900 mb-2">Pinch Block Lifts</h2>
+                    <p class="text-slate-600 text-sm">Develop isometric pinch strength with focused, heavy holds.</p>
+                </div>
+            </a>
+
+            <!-- Link to Classic 7/3 Repeaters -->
+            <a href="?artifact=classic-7-3-repeaters-protocol" class="block">
+                <div class="protocol-card p-6 flex flex-col items-center text-center">
+                    <!-- Icon for Classic 7/3 Repeaters: A series of waves/pulse, representing endurance and repeated effort -->
+                    <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-16 w-16 text-teal-500 mb-4">
+                        <path d="M2 12h2l3 8l5-16l3 8h2"/>
+                    </svg>
+                    <h2 class="text-xl font-bold text-slate-900 mb-2">Classic 7/3 Repeaters</h2>
+                    <p class="text-slate-600 text-sm">Enhance strength-endurance with intense 7s ON / 3s OFF cycles.</p>
+                </div>
+            </a>
 
         </main>
     </div>
