@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Master Workout History</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        .section-card {
+            background-color: white;
+            border-radius: 0.75rem;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+            transition: all 0.3s ease-in-out;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        th, td {
+            padding: 0.75rem 1.5rem;
+            text-align: left;
+            border-bottom: 1px solid #e2e8f0; /* slate-200 */
+        }
+        th {
+            background-color: #f8fafc; /* slate-50 */
+            font-size: 0.75rem; /* text-xs */
+            font-weight: 500; /* font-medium */
+            color: #64748b; /* slate-500 */
+            text-transform: uppercase;
+            letter-spacing: 0.05em; /* tracking-wider */
+        }
+        tbody tr:hover {
+            background-color: #f8fafc; /* slate-50 */
+        }
+        .empty-message {
+            text-align: center;
+            padding: 1.5rem;
+            color: #64748b; /* slate-500 */
+            font-size: 0.875rem; /* text-sm */
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800">
+
+    <div class="max-w-6xl mx-auto px-4 py-8 sm:px-6 lg:px-8">
+        
+        <header class="text-center mb-12">
+            <h1 class="text-4xl md:text-5xl font-bold text-slate-900">Your Full Workout History</h1>
+            <p class="mt-4 text-lg text-slate-600">A consolidated view of all your logged training sessions.</p>
+        </header>
+
+        <main class="space-y-10">
+
+            <section id="user-info" class="section-card p-6 md:p-8">
+                <h2 class="text-2xl font-bold text-slate-900 mb-4">User Information</h2>
+                <p class="text-slate-600">Your unique ID for this session: <span id="user-id-display" class="font-mono text-slate-900 bg-slate-100 p-2 rounded-md">Loading...</span></p>
+                <p id="firebase-status" class="mt-2 text-sm text-slate-500">Firebase Status: Initializing...</p>
+            </section>
+
+            <section id="all-workouts-history" class="section-card p-6 md:p-8">
+                <h2 class="text-2xl font-bold text-slate-900 mb-4">All Logged Workouts</h2>
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-slate-200">
+                        <thead>
+                            <tr>
+                                <th scope="col">Date</th>
+                                <th scope="col">Protocol</th>
+                                <th scope="col">Grip/Pinch</th>
+                                <th scope="col">Weight</th>
+                                <th scope="col">Sets/Cycles</th>
+                                <th scope="col">Hold Dur. (s)</th>
+                                <th scope="col">Total Workout Time</th>
+                                <th scope="col">Total Hold Time</th>
+                                <th scope="col">Total Rest Time</th>
+                            </tr>
+                        </thead>
+                        <tbody id="history-table-body" class="bg-white divide-y divide-slate-200">
+                            <tr>
+                                <td colspan="9" class="empty-message">Loading workout history...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+        </main>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, query, getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            const state = {
+                db: null,
+                auth: null,
+                userId: 'Loading...',
+                workoutHistory: [] // To store all combined workout summaries
+            };
+
+            // DOM Elements
+            const userIdDisplay = document.getElementById('user-id-display');
+            const firebaseStatusDisplay = document.getElementById('firebase-status');
+            const historyTableBody = document.getElementById('history-table-body');
+
+            const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+            const firebaseConfigString = typeof __firebase_config !== 'undefined' ? __firebase_config : '{}';
+            let firebaseConfig = {};
+
+            // List of all protocol history collections
+            const protocolCollections = [
+                "max_weight_workout_summaries",
+                "tension_repeater_workout_summaries",
+                "classic_7_3_repeater_workout_summaries",
+                "pinch_block_workout_summaries"
+            ];
+
+            // Utility function to format time
+            function formatTime(seconds) {
+                const minutes = Math.floor(seconds / 60);
+                const remainingSeconds = Math.floor(seconds % 60);
+                return `${minutes}m ${remainingSeconds}s`;
+            }
+
+            // --- Firebase Initialization and Authentication ---
+            try {
+                firebaseConfig = JSON.parse(firebaseConfigString);
+                if (firebaseConfig && firebaseConfig.projectId) {
+                    const app = initializeApp(firebaseConfig);
+                    state.db = getFirestore(app);
+                    state.auth = getAuth(app);
+                    firebaseStatusDisplay.textContent = "Firebase Status: Connected.";
+
+                    let signedIn = false;
+                    if (typeof __initial_auth_token !== 'undefined') {
+                        try {
+                            await signInWithCustomToken(state.auth, __initial_auth_token);
+                            signedIn = true;
+                        } catch (tokenError) {
+                            console.warn("Custom token sign-in failed:", tokenError.message, "Attempting anonymous sign-in.");
+                        }
+                    }
+
+                    if (!signedIn) {
+                        try {
+                            await signInAnonymously(state.auth);
+                            signedIn = true;
+                        } catch (anonError) {
+                            console.error("Anonymous sign-in failed:", anonError.message);
+                            firebaseStatusDisplay.textContent = "Firebase Status: Authentication Failed. Cloud persistence unavailable.";
+                            state.db = null; 
+                            state.auth = null; 
+                        }
+                    }
+
+                    if (signedIn) {
+                        onAuthStateChanged(state.auth, (user) => {
+                            if (user) {
+                                state.userId = user.uid;
+                                userIdDisplay.textContent = state.userId;
+                                loadAllWorkoutHistory();
+                            } else {
+                                state.userId = "Anonymous (Local)";
+                                userIdDisplay.textContent = state.userId;
+                                firebaseStatusDisplay.textContent = "Firebase Status: Signed in anonymously. Data is local to this session.";
+                                // If already signed in anonymously and onAuthStateChanged fires with null user
+                                // this might mean an issue, or just the very initial state before a user is established.
+                                // We'll just show local ID and note potential persistence limitation.
+                                // For consistency, if Firebase is connected but no user, we still attempt to load with the anonymous ID.
+                                loadAllWorkoutHistory(); // Attempt to load even with anonymous ID
+                            }
+                        });
+                    }
+                } else {
+                    firebaseStatusDisplay.textContent = "Firebase Status: Configuration Missing. Cloud persistence unavailable.";
+                    state.userId = "Local Session (No Cloud)";
+                    userIdDisplay.textContent = state.userId;
+                    console.warn("Firebase config is missing projectId or is empty. Cloud persistence will not be available.");
+                    renderWorkoutHistory(); // Render empty table or a no-data message
+                }
+            } catch (error) {
+                console.error("Error during Firebase initialization or authentication:", error);
+                firebaseStatusDisplay.textContent = `Firebase Status: Error (${error.message}). Cloud persistence unavailable.`;
+                state.userId = "Local Session (Error)";
+                userIdDisplay.textContent = state.userId;
+                renderWorkoutHistory(); // Render empty table or a no-data message
+            }
+
+            // --- Load All Workout History ---
+            async function loadAllWorkoutHistory() {
+                if (!state.db || !state.userId) { 
+                    historyTableBody.innerHTML = `<tr><td colspan="9" class="empty-message">Cannot load history. Firebase not initialized or user ID is unavailable.</td></tr>`;
+                    return;
+                }
+                
+                historyTableBody.innerHTML = `<tr><td colspan="9" class="empty-message">Loading all workout history...</td></tr>`;
+                state.workoutHistory = []; // Clear previous data
+
+                for (const collectionName of protocolCollections) {
+                    try {
+                        const workoutsCollectionRef = collection(state.db, `artifacts/${appId}/users/${state.userId}/${collectionName}`);
+                        const q = query(workoutsCollectionRef); 
+                        const querySnapshot = await getDocs(q);
+                        
+                        querySnapshot.forEach((doc) => {
+                            const data = doc.data();
+                            // Add protocol name to the data for display
+                            let protocolDisplayName = collectionName
+                                .replace(/_workout_summaries$/, '')
+                                .replace(/_/g, ' ')
+                                .replace(/\b\w/g, char => char.toUpperCase()); // Capitalize first letter of each word
+                            
+                            // Adjust display name for specific protocols
+                            if (protocolDisplayName.includes('Max Weight')) {
+                                protocolDisplayName = 'Max Weight 7-10s Lifts';
+                            } else if (protocolDisplayName.includes('Tension Repeater')) {
+                                protocolDisplayName = "Tension 'Standard' Repeaters";
+                            } else if (protocolDisplayName.includes('Classic 7 3 Repeater')) {
+                                protocolDisplayName = 'Classic 7/3 Repeaters';
+                            } else if (protocolDisplayName.includes('Pinch Block')) {
+                                protocolDisplayName = 'Pinch Block Lifts';
+                            }
+
+                            state.workoutHistory.push({
+                                ...data,
+                                protocol: protocolDisplayName // Add the protocol name
+                            });
+                        });
+                    } catch (e) {
+                        console.error(`Error loading history from ${collectionName}:`, e);
+                        // Do not stop loading other collections, just log the error
+                    }
+                }
+                
+                // Sort all combined history by date in descending order
+                state.workoutHistory.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+                renderWorkoutHistory();
+            }
+
+            // --- Render All Workout History to Table ---
+            function renderWorkoutHistory() {
+                historyTableBody.innerHTML = '';
+                if (state.workoutHistory.length === 0) {
+                    historyTableBody.innerHTML = `<tr><td colspan="9" class="empty-message">No workouts logged yet across all protocols.</td></tr>`;
+                    return;
+                }
+
+                state.workoutHistory.forEach(summary => {
+                    const row = historyTableBody.insertRow();
+                    const workoutDate = new Date(summary.date);
+                    const formattedDate = workoutDate.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+                    
+                    row.innerHTML = `
+                        <td>${formattedDate}</td>
+                        <td>${summary.protocol}</td>
+                        <td>${summary.gripType || summary.pinchType || 'N/A'}</td>
+                        <td>${summary.weight || 'N/A'}</td>
+                        <td>${summary.numSets || summary.setsPerGrip || summary.totalCycles || 'N/A'}</td>
+                        <td>${summary.liftDurationPerHold || summary.holdDuration || 'N/A'}</td>
+                        <td>${formatTime(summary.totalWorkoutDuration || 0)}</td>
+                        <td>${formatTime(summary.totalLiftDuration || 0)}</td>
+                        <td>${formatTime(summary.totalRestDuration || 0)}</td>
+                    `;
+                });
+            }
+        });
+    </script>
+</body>
+</html>
