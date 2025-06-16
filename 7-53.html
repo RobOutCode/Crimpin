@@ -188,17 +188,44 @@
     </div>
 
     <script>
-        document.addEventListener('DOMContentLoaded', () => {
+        // This is the 'appId' field from your firebaseConfig, used by your existing code
+        const __app_id = "1:1069153831535:web:b5275caff1a948aa831b9a";
+
+        // This is your full Firebase project configuration object, stringified for your existing code
+        const __firebase_config = JSON.stringify({
+          apiKey: "AIzaSyChVyJ-FU_q2ecKum3kVj8ptv-Z0_jGjGY",
+          authDomain: "crimptheory.firebaseapp.com",
+          projectId: "crimptheory",
+          storageBucket: "crimptheory.appspot.com",
+          messagingSenderId: "1069153831535",
+          appId: "1:1069153831535:web:b5275caff1a948aa831b9a",
+          measurementId: "G-8DGM79J607"
+        });
+    </script>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, addDoc, query, orderBy, getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        document.addEventListener('DOMContentLoaded', async () => {
             const state = {
+                // Firebase
+                db: null,
+                auth: null,
+                userId: 'anonymous', // Default to anonymous
+
+                // Test Phase State
                 testWeight: 40,
                 testTimerId: null,
                 testSeconds: 10,
+
+                // Workout Phase State
                 workoutGripType: '20mm Half-Crimp',
                 workoutWeight: 40,
-                workoutHand: 'Right', 
                 workoutTimerId: null,
                 currentRep: 1,
-                maxReps: 5, // Changed from 3 to 5
+                maxReps: 5,
                 currentSet: 1, 
                 isLiftPhase: true,
                 liftDuration: 7,
@@ -235,6 +262,68 @@
             const upNextText = document.getElementById('up-next-text'); 
 
             const ringCircumference = 2 * Math.PI * 45; 
+
+            // Firebase Initialization and Authentication 
+            let app;
+            const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+            const firebaseConfigString = typeof __firebase_config !== 'undefined' ? __firebase_config : '{}';
+            let firebaseConfig = {};
+
+            try {
+                firebaseConfig = JSON.parse(firebaseConfigString);
+            } catch (e) {
+                console.error("Error parsing __firebase_config:", e);
+            }
+
+            if (firebaseConfig && firebaseConfig.projectId) {
+                try {
+                    app = initializeApp(firebaseConfig);
+                    state.db = getFirestore(app);
+                    state.auth = getAuth(app);
+
+                    let signedIn = false;
+                    if (typeof __initial_auth_token !== 'undefined') {
+                        try {
+                            await signInWithCustomToken(state.auth, __initial_auth_token);
+                            signedIn = true;
+                            console.log("Signed in with custom token.");
+                        } catch (tokenError) {
+                            console.warn("Custom token sign-in failed:", tokenError.message, "Attempting anonymous sign-in.");
+                        }
+                    }
+
+                    if (!signedIn) {
+                        try {
+                            await signInAnonymously(state.auth);
+                            console.log("Signed in anonymously.");
+                            signedIn = true;
+                        } catch (anonError) {
+                            console.error("Anonymous sign-in failed:", anonError.message);
+                            // This part of the code was removed for brevity in the older context, but similar error handling logic exists
+                        }
+                    }
+
+                    if (signedIn) {
+                        onAuthStateChanged(state.auth, (user) => {
+                            if (user) {
+                                state.userId = user.uid;
+                                console.log("Firebase user ID:", state.userId);
+                                // The original '7-53.html' did not have history loading, but if it were added, it would go here.
+                            } else {
+                                state.userId = crypto.randomUUID(); 
+                                console.log("User not authenticated, using random ID for local operations:", state.userId);
+                            }
+                        });
+                    }
+                } catch (error) {
+                    console.error("Error during Firebase initialization or authentication:", error);
+                    state.userId = crypto.randomUUID(); 
+                }
+            } else {
+                console.warn("Firebase config is missing projectId or is empty. Cloud persistence will not be available.");
+                state.userId = crypto.randomUUID(); 
+            }
+            // End Firebase Initialization and Authentication
 
             function updateRing(percent) {
                 const offset = ringCircumference - (percent / 100) * ringCircumference;
@@ -326,7 +415,7 @@
                 }, 1000);
             }
             
-            function showSetSummary() {
+            async function showSetSummary() {
                 clearInterval(state.workoutTimerId);
                 timerStatus.textContent = "Set Complete!";
                 timerCountdown.textContent = "👏";
@@ -338,6 +427,31 @@
                 cancelWorkoutBtn.classList.add('hidden'); 
 
                 updateUpNextDisplay(); 
+
+                // Save workout summary to Firestore (if Firebase is set up)
+                if (state.db && state.userId !== 'anonymous') {
+                    try {
+                        const workoutSummary = {
+                            date: new Date().toISOString(), // ISO string for easy sorting/display
+                            gripType: state.workoutGripType,
+                            weight: state.workoutWeight,
+                            hand: state.workoutHand,
+                            setNumber: state.currentSet,
+                            totalReps: state.maxReps,
+                            repDuration: state.liftDuration,
+                            totalLiftDuration: state.maxReps * state.liftDuration, // Assuming all reps completed
+                            totalRestDuration: (state.maxReps - 1) * state.restDuration, // Rest between reps
+                            userId: state.userId
+                        };
+                        const workoutsCollectionRef = collection(state.db, `artifacts/${appId}/users/${state.userId}/tension_repeater_workout_summaries`); 
+                        await addDoc(workoutsCollectionRef, workoutSummary);
+                        console.log("Workout summary saved successfully!");
+                    } catch (e) {
+                        console.error("Error saving workout summary:", e);
+                    }
+                } else {
+                    console.warn("Skipping workout summary save: Firebase not initialized or user not authenticated.");
+                }
             }
 
             function logRep() {
