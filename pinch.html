@@ -219,6 +219,23 @@
         </main>
     </div>
 
+    <!-- YOUR FIREBASE CONFIGURATION -->
+    <script>
+        // This is the 'appId' field from your firebaseConfig, used by your existing code
+        const __app_id = "1:1069153831535:web:b5275caff1a948aa831b9a"; // Replace with your actual appId
+
+        // This is your full Firebase project configuration object, stringified for your existing code
+        const __firebase_config = JSON.stringify({
+          apiKey: "AIzaSyChVyJ-FU_q2ecKum3kVj8ptv-Z0_jGjGY", // Replace with your actual apiKey
+          authDomain: "crimptheory.firebaseapp.com", // Replace with your actual authDomain
+          projectId: "crimptheory", // Replace with your actual projectId
+          storageBucket: "crimptheory.appspot.com", // Replace with your actual storageBucket
+          messagingSenderId: "1069153831535", // Replace with your actual messagingSenderId
+          appId: "1:1069153831535:web:b5275caff1a948aa831b9a", // Replace with your actual appId
+          measurementId: "G-8DGM79J607" // Replace with your actual measurementId (optional)
+        });
+    </script>
+
     <script type="module">
         // Firebase Imports
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
@@ -769,21 +786,3 @@
     </script>
 </body>
 </html>
-```
-
-### Key Features of this Pinch Block Lifts Canvas:
-
-* **Protocol Description:** Clear information about the Pinch Block Lifts Protocol, its benefits, and how it works.
-* **Customized Weight Test:** A dedicated section to help you determine the appropriate weight for your 10-second pinch holds, ensuring you're challenging yourself effectively.
-* **Workout Parameters:**
-    * **Hold Duration:** Fixed at **10 seconds ON**.
-    * **Intra-set Rest:** Fixed at **30 seconds OFF** when alternating arms.
-    * **Reps per Arm:** Each arm performs **1 lift** per set.
-    * **Total Cycles:** You can set the total number of Right Hand + Left Hand cycles (recommended: 5).
-    * **Rest Between Cycles:** A fixed **3-minute (180 seconds)** long rest period is included after both hands complete their lifts within a cycle.
-* **Interactive Timer:** The workout engine guides you precisely through each hold, alternating arm rest, and long rest, automating the transitions. The status indicator will prompt you with "PINCH!".
-* **Comprehensive Time Tracking:** It tracks and displays your **Total Workout Time**, **Total Pinch Time** (time under tension), and **Total Rest Time** for the entire session.
-* **Current Session Lifts Log:** Individual lifts from your active workout session are logged in a clear table.
-* **Persistent Workout History:** All completed workout sessions (summaries) are saved to Firebase Firestore under `pinch_block_lifts_workout_summaries` and displayed in the "Past Workout History" table, allowing you to track your progress over time.
-
-This page provides a robust and interactive tool to help you effectively incorporate Pinch Block Lifts into your climbing traini
