@@ -92,6 +92,23 @@
         </main>
     </div>
 
+    <!-- YOUR FIREBASE CONFIGURATION (ADD THIS SCRIPT BLOCK) -->
+    <script>
+        // This is the 'appId' field from your firebaseConfig, used by your existing code
+        const __app_id = "1:1069153831535:web:b5275caff1a948aa831b9a"; // Replace with your actual appId
+
+        // This is your full Firebase project configuration object, stringified for your existing code
+        const __firebase_config = JSON.stringify({
+          apiKey: "AIzaSyChVyJ-FU_q2ecKum3kVj8ptv-Z0_jGjGY", // Replace with your actual apiKey
+          authDomain: "crimptheory.firebaseapp.com", // Replace with your actual authDomain
+          projectId: "crimptheory", // Replace with your actual projectId
+          storageBucket: "crimptheory.appspot.com", // Replace with your actual storageBucket
+          messagingSenderId: "1069153831535", // Replace with your actual messagingSenderId
+          appId: "1:1069153831535:web:b5275caff1a948aa831b9a", // Replace with your actual appId
+          measurementId: "G-8DGM79J607" // Replace with your actual measurementId (optional)
+        });
+    </script>
+
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
