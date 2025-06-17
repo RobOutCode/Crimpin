@@ -29,7 +29,9 @@
 <body class="bg-slate-50 text-slate-800">
 
     <div class="max-w-4xl mx-auto px-4 py-8 sm:px-6 lg:px-8">
-        
+        <div class="flex justify-end mb-4">
+            <a href="reg.html" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-md transition duration-300">Register / Log In</a>
+        </div>
         <header class="text-center mb-12">
             <p class="text-sm mb-2"><a href="home.html" class="text-teal-600 hover:text-teal-800 font-semibold">← Back to Workout Protocols</a></p>
             <h1 class="text-4xl md:text-5xl font-bold text-slate-900">Interactive 7-53 Workout</h1>
@@ -401,7 +403,7 @@
                         if (state.isLiftPhase) {
                             logRep(); 
                             state.isLiftPhase = false;
-                            if (state.currentRep > state.maxReps) { // Check if rep count exceeds maxReps
+                            if (state.currentRep > state.maxRps) { // Check if rep count exceeds maxReps
                                 showSetSummary(); 
                             } else {
                                 runWorkoutTimer();
