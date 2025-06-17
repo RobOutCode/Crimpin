@@ -79,18 +79,6 @@
 
             let isSignUpMode = true; // State to track if we are in sign-up or log-in mode
             
-            // Check sessionStorage for redirect status on page load
-            const hasRedirectedInSession = sessionStorage.getItem('redirectedFromAuthPage');
-
-            // If we've already redirected in this session, don't attempt it again immediately
-            // This is primarily to prevent re-entering a loop if the page reloads after a redirect attempt.
-            if (hasRedirectedInSession === 'true') {
-                console.log("Already redirected in this session. Clearing flag.");
-                sessionStorage.removeItem('redirectedFromAuthPage'); // Clear the flag for future fresh visits
-                // Immediately return to prevent further script execution that might trigger another redirect
-                return; 
-            }
-
             // Initialize Firebase (using provided global config)
             const firebaseConfigString = typeof __firebase_config !== 'undefined' ? __firebase_config : '{}';
             let firebaseConfig = {};
@@ -129,16 +117,15 @@
             // Check authentication state on load
             if (auth) {
                 onAuthStateChanged(auth, (user) => {
-                    if (user) {
+                    // Check sessionStorage for redirect status. This flag is set by redirectToHome.
+                    // If user is logged in AND we haven't already attempted a redirect in this session, then redirect.
+                    if (user && sessionStorage.getItem('redirectedFromAuthPage') !== 'true') {
                         console.log("User already signed in:", user.email || user.uid);
-                        // Only attempt redirect if we haven't already.
-                        // The sessionStorage check at the top of DOMContentLoaded handles reloads.
-                        // This specific check ensures it only runs once per auth state change.
-                        if (sessionStorage.getItem('redirectedFromAuthPage') !== 'true') {
-                           redirectToHome(); 
-                        }
-                    } else {
+                        redirectToHome(); 
+                    } else if (!user) {
                         console.log("No user signed in.");
+                        // If user logs out or is not logged in, ensure the flag is cleared
+                        sessionStorage.removeItem('redirectedFromAuthPage'); 
                     }
                 });
             }
