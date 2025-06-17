@@ -352,69 +352,57 @@
                     state.db = getFirestore(app);
                     state.auth = getAuth(app);
 
-                    let signedIn = false;
+                    // Only attempt custom token sign-in. If not present or fails, rely on onAuthStateChanged
+                    // to determine the user state (either logged in via reg.html or effectively anonymous).
                     if (typeof __initial_auth_token !== 'undefined') {
                         try {
                             await signInWithCustomToken(state.auth, __initial_auth_token);
-                            signedIn = true;
                             console.log("Signed in with custom token.");
                         } catch (tokenError) {
-                            console.warn("Custom token sign-in failed:", tokenError.message, "Attempting anonymous sign-in.");
+                            console.warn("Custom token sign-in failed:", tokenError.message);
                         }
                     }
 
-                    if (!signedIn) {
+                    onAuthStateChanged(state.auth, (user) => {
+                        if (user) {
+                            state.userId = user.uid;
+                            console.log("Firebase user ID:", state.userId);
+                            loadWorkoutHistory(); // Load history after user is authenticated
+
+                            // Update UI for logged-in user
+                            userNamePlaceholder.textContent = user.displayName || user.email || user.uid.substring(0, 8);
+                            userInfoDisplay.classList.remove('hidden');
+                            registerLoginBtn.classList.add('hidden');
+                            logoutBtn.classList.remove('hidden');
+
+                        } else {
+                            // If user is not authenticated (no custom token, or signed out), use a random ID for local operations
+                            state.userId = crypto.randomUUID(); 
+                            console.log("No user signed in. Using random ID for local operations:", state.userId);
+
+                            // Update UI for logged-out user
+                            userNamePlaceholder.textContent = "Guest";
+                            userInfoDisplay.classList.add('hidden');
+                            registerLoginBtn.classList.remove('hidden');
+                            logoutBtn.classList.add('hidden');
+                            historyTableBody.innerHTML = `<tr><td colspan="8" class="px-6 py-4 whitespace-nowrap text-sm text-slate-500 text-center">Please log in to view saved workout history.</td></tr>`;
+                        }
+                    });
+                    // Logout button event listener
+                    logoutBtn.addEventListener('click', async () => {
                         try {
-                            await signInAnonymously(state.auth);
-                            console.log("Signed in anonymously.");
-                            signedIn = true;
-                        } catch (anonError) {
-                            console.error("Anonymous sign-in failed:", anonError.message);
-                            historyTableBody.innerHTML = `<tr><td colspan="8" class="px-6 py-4 whitespace-nowrap text-sm text-red-600 text-center">Authentication failed. Cloud persistence will not be available.</td></tr>`;
-                            state.db = null; 
-                            state.auth = null; 
-                            signedIn = false; 
+                            await signOut(state.auth);
+                            console.log("User logged out.");
+                            window.location.href = 'reg.html'; // Redirect to login page
+                        } catch (error) {
+                            console.error("Error logging out:", error);
                         }
-                    }
-
-                    if (signedIn) {
-                         onAuthStateChanged(state.auth, (user) => {
-                            if (user) {
-                                state.userId = user.uid;
-                                console.log("Firebase user ID:", state.userId);
-                                loadWorkoutHistory(); // Load history after user is authenticated
-
-                                // Update UI for logged-in user
-                                userNamePlaceholder.textContent = user.displayName || user.email || user.uid.substring(0, 8);
-                                userInfoDisplay.classList.remove('hidden');
-                                registerLoginBtn.classList.add('hidden');
-                                logoutBtn.classList.remove('hidden');
-
-                            } else {
-                                state.userId = crypto.randomUUID(); 
-                                console.log("User not authenticated, using random ID for local operations:", state.userId);
-
-                                // Update UI for logged-out user
-                                userNamePlaceholder.textContent = "Guest";
-                                userInfoDisplay.classList.add('hidden');
-                                registerLoginBtn.classList.remove('hidden');
-                                logoutBtn.classList.add('hidden');
-                            }
-                        });
-                        // Logout button event listener
-                        logoutBtn.addEventListener('click', async () => {
-                            try {
-                                await signOut(state.auth);
-                                console.log("User logged out.");
-                                window.location.href = 'reg.html'; // Redirect to login page
-                            } catch (error) {
-                                console.error("Error logging out:", error);
-                            }
-                        });
-                    }
+                    });
                 } catch (error) {
-                    console.error("Error during Firebase initialization or authentication:", error);
+                    console.error("Error during Firebase initialization:", error);
                     historyTableBody.innerHTML = `<tr><td colspan="8" class="px-6 py-4 whitespace-nowrap text-sm text-red-600 text-center">Error setting up Firebase: ${error.message}. Cloud persistence will not be available.</td></tr>`;
+                    state.db = null; 
+                    state.auth = null; 
                     state.userId = crypto.randomUUID(); 
                 }
             } else {
@@ -424,6 +412,7 @@
             }
 
             renderCurrentSessionLifts();
+            // Initial history display: set a placeholder. onAuthStateChanged will call loadWorkoutHistory once user state is resolved.
             if (!state.db) {
                 historyTableBody.innerHTML = `<tr><td colspan="8" class="px-6 py-4 whitespace-nowrap text-sm text-slate-500 text-center">Cloud persistence not available. History cannot be loaded.</td></tr>`;
             } else {
@@ -753,10 +742,11 @@
 
             // --- Firestore Loading and Display of Workout History ---
             async function loadWorkoutHistory() {
+                // Ensure Firebase is ready and userId is not the anonymous placeholder
                 if (!state.db || !state.userId || state.userId === 'anonymous') { 
-                    console.warn("Firebase not ready to load history, or user is anonymous placeholder. Skipping history load.");
+                    console.warn("Firebase not ready to load history, or user is not authenticated. Skipping history load.");
                     if (state.db) {
-                        historyTableBody.innerHTML = `<tr><td colspan="8" class="px-6 py-4 whitespace-nowrap text-sm text-slate-500 text-center">Waiting for user authentication to load history...</td></tr>`;
+                         historyTableBody.innerHTML = `<tr><td colspan="8" class="px-6 py-4 whitespace-nowrap text-sm text-slate-500 text-center">Please log in to view saved workout history.</td></tr>`;
                     }
                     return;
                 }
