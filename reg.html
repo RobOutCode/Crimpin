@@ -105,11 +105,14 @@
             }
 
             // Function to handle redirection
-            function redirectToHome(delay = 500) {
-                if (redirectInitiated) return; // Prevent multiple redirects
+            function redirectToHome(delay = 100) { // Reduced delay
+                if (redirectInitiated) {
+                    return; // Prevent multiple redirects
+                }
                 redirectInitiated = true;
                 
                 authMessage.textContent = `Already logged in. Redirecting to home...`; // Update message
+                
                 setTimeout(() => { // Add a small delay for the message to be seen
                     const redirectUrl = new URLSearchParams(window.location.search).get('redirect');
                     if (redirectUrl) {
@@ -118,6 +121,8 @@
                         // For Canvas environment, this is the most reliable way to navigate between artifacts
                         window.location.href = '?artifact=home-page'; 
                     }
+                    // Attempt to stop further script execution on this page
+                    window.stop(); 
                 }, delay);
             }
 
@@ -127,6 +132,7 @@
                     if (user) {
                         console.log("User already signed in:", user.email || user.uid);
                         redirectToHome(); // Redirect if already signed in
+                        return; // Stop further execution in this callback
                     } else {
                         console.log("No user signed in.");
                     }
@@ -156,6 +162,7 @@
                         console.log("Login successful!");
                     }
                     redirectToHome(); // Redirect on successful sign-up/login
+                    return; // Stop further execution in this callback
                 } catch (error) {
                     console.error("Authentication error:", error.code, error.message);
                     let displayMessage = "An unexpected error occurred.";
