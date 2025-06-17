@@ -49,8 +49,14 @@
 <body class="bg-slate-50 text-slate-800">
 
     <div class="max-w-6xl mx-auto px-4 py-8 sm:px-6 lg:px-8">
-        <div class="flex justify-end mb-4">
-            <a href="reg.html" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-md transition duration-300">Register / Log In</a>
+        <div class="flex justify-between items-center mb-4">
+            <div id="user-info-display" class="text-slate-700 font-medium hidden">
+                Welcome, <span id="user-name-placeholder" class="text-teal-600">Guest</span>!
+            </div>
+            <div class="flex space-x-2">
+                <a href="reg.html" id="register-login-btn" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-md transition duration-300">Register / Log In</a>
+                <button id="logout-btn" class="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded-md transition duration-300 hidden">Log Out</button>
+            </div>
         </div>
         <header class="text-center mb-12">
             <h1 class="text-4xl md:text-5xl font-bold text-slate-900">Your Full Workout History</h1>
@@ -112,7 +118,7 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, collection, query, getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         document.addEventListener('DOMContentLoaded', async () => {
@@ -127,6 +133,12 @@
             const userIdDisplay = document.getElementById('user-id-display');
             const firebaseStatusDisplay = document.getElementById('firebase-status');
             const historyTableBody = document.getElementById('history-table-body');
+            
+            // User Info & Logout Button
+            const userNamePlaceholder = document.getElementById('user-name-placeholder');
+            const userInfoDisplay = document.getElementById('user-info-display');
+            const registerLoginBtn = document.getElementById('register-login-btn');
+            const logoutBtn = document.getElementById('logout-btn');
 
             const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
             const firebaseConfigString = typeof __firebase_config !== 'undefined' ? __firebase_config : '{}';
@@ -183,7 +195,14 @@
                             if (user) {
                                 state.userId = user.uid;
                                 userIdDisplay.textContent = state.userId;
-                                loadAllWorkoutHistory();
+                                loadAllWorkoutHistory(); // Load history after user is authenticated
+
+                                // Update UI for logged-in user
+                                userNamePlaceholder.textContent = user.displayName || user.email || user.uid.substring(0, 8);
+                                userInfoDisplay.classList.remove('hidden');
+                                registerLoginBtn.classList.add('hidden');
+                                logoutBtn.classList.remove('hidden');
+
                             } else {
                                 state.userId = "Anonymous (Local)";
                                 userIdDisplay.textContent = state.userId;
@@ -193,6 +212,22 @@
                                 // We'll just show local ID and note potential persistence limitation.
                                 // For consistency, if Firebase is connected but no user, we still attempt to load with the anonymous ID.
                                 loadAllWorkoutHistory(); // Attempt to load even with anonymous ID
+
+                                // Update UI for logged-out user
+                                userNamePlaceholder.textContent = "Guest";
+                                userInfoDisplay.classList.add('hidden');
+                                registerLoginBtn.classList.remove('hidden');
+                                logoutBtn.classList.add('hidden');
+                            }
+                        });
+                        // Logout button event listener
+                        logoutBtn.addEventListener('click', async () => {
+                            try {
+                                await signOut(state.auth);
+                                console.log("User logged out.");
+                                window.location.href = 'reg.html'; // Redirect to login page
+                            } catch (error) {
+                                console.error("Error logging out:", error);
                             }
                         });
                     }
