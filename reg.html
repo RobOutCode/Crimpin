@@ -78,7 +78,18 @@
             const authMessage = document.getElementById('auth-message');
 
             let isSignUpMode = true; // State to track if we are in sign-up or log-in mode
-            let redirectInitiated = false; // Flag to prevent multiple redirects
+            
+            // Check sessionStorage for redirect status on page load
+            const hasRedirectedInSession = sessionStorage.getItem('redirectedFromAuthPage');
+
+            // If we've already redirected in this session, don't attempt it again immediately
+            if (hasRedirectedInSession === 'true') {
+                console.log("Already redirected in this session. Clearing flag.");
+                sessionStorage.removeItem('redirectedFromAuthPage'); // Clear the flag for future fresh visits
+                // Optional: You might want to stop here or just let the page render normally
+                // if it's not currently stuck in a loop. For a loop, this is key.
+                return; 
+            }
 
             // Initialize Firebase (using provided global config)
             const firebaseConfigString = typeof __firebase_config !== 'undefined' ? __firebase_config : '{}';
@@ -105,25 +116,23 @@
             }
 
             // Function to handle redirection
-            function redirectToHome(delay = 100) { // Reduced delay
-                if (redirectInitiated) {
-                    return; // Prevent multiple redirects
+            function redirectToHome() {
+                // Set flag in sessionStorage before redirecting
+                sessionStorage.setItem('redirectedFromAuthPage', 'true');
+                
+                authMessage.textContent = `Authentication successful! Redirecting to home...`;
+                
+                // Use window.location.replace to prevent adding to browser history
+                // This might help prevent the back button from returning to the looping page
+                const redirectUrl = new URLSearchParams(window.location.search).get('redirect');
+                if (redirectUrl) {
+                    window.location.replace(`?artifact=${redirectUrl}`);
+                } else {
+                    window.location.replace('?artifact=home-page'); 
                 }
-                redirectInitiated = true;
-                
-                authMessage.textContent = `Already logged in. Redirecting to home...`; // Update message
-                
-                setTimeout(() => { // Add a small delay for the message to be seen
-                    const redirectUrl = new URLSearchParams(window.location.search).get('redirect');
-                    if (redirectUrl) {
-                        window.location.href = `?artifact=${redirectUrl}`;
-                    } else {
-                        // For Canvas environment, this is the most reliable way to navigate between artifacts
-                        window.location.href = '?artifact=home-page'; 
-                    }
-                    // Attempt to stop further script execution on this page
-                    window.stop(); 
-                }, delay);
+                // Important: Immediately halt script execution after attempting redirect
+                // This is crucial in environments where page unload is not instantaneous.
+                throw new Error('Redirecting...'); // Throwing an error will stop script execution
             }
 
             // Check authentication state on load
@@ -132,7 +141,7 @@
                     if (user) {
                         console.log("User already signed in:", user.email || user.uid);
                         redirectToHome(); // Redirect if already signed in
-                        return; // Stop further execution in this callback
+                        // No return needed here, as redirectToHome() now throws an error.
                     } else {
                         console.log("No user signed in.");
                     }
@@ -154,15 +163,13 @@
                 try {
                     if (isSignUpMode) {
                         await createUserWithEmailAndPassword(auth, email, password);
-                        authMessage.textContent = "Sign Up successful! Redirecting...";
                         console.log("Sign up successful!");
                     } else {
                         await signInWithEmailAndPassword(auth, email, password);
-                        authMessage.textContent = "Log In successful! Redirecting...";
                         console.log("Login successful!");
                     }
                     redirectToHome(); // Redirect on successful sign-up/login
-                    return; // Stop further execution in this callback
+                    // No return needed here, as redirectToHome() now throws an error.
                 } catch (error) {
                     console.error("Authentication error:", error.code, error.message);
                     let displayMessage = "An unexpected error occurred.";
