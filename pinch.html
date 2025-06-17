@@ -135,7 +135,7 @@
                         </svg>
                         <div class="absolute inset-0 flex flex-col items-center justify-center">
                             <div id="timer-status" class="text-3xl font-bold text-slate-900">PINCH!</div>
-                            <div id="timer-countdown" class="5xl font-bold text-slate-700">10</div>
+                            <div id="timer-countdown" class="text-5xl font-bold text-slate-700">10</div>
                         </div>
                     </div>
                     <div id="current-set-display" class="text-xl font-bold text-slate-800 mb-2">Cycle 1 of 5</div>
@@ -226,7 +226,7 @@
 
         // This is your full Firebase project configuration object, stringified for your existing code
         const __firebase_config = JSON.stringify({
-          apiKey: "AIzaSyChVyJ-FU_q2ecKum3kVj8ptv-Z0_jGjGY", // Replace with your actual apiKey
+          apiKey: "AIzaSyChVyJ-FU_q2ecKum3kVj8ptV-Z0_jGIgY", // Replace with your actual apiKey
           authDomain: "crimptheory.firebaseapp.com", // Replace with your actual authDomain
           projectId: "crimptheory", // Replace with your actual projectId
           storageBucket: "crimptheory.appspot.com", // Replace with your actual storageBucket
@@ -336,7 +336,7 @@
 
             if (firebaseConfig && firebaseConfig.projectId) {
                 try {
-                    app = initializeApp(firebaseConfig);
+                    const app = initializeApp(firebaseConfig);
                     state.db = getFirestore(app);
                     state.auth = getAuth(app);
 
