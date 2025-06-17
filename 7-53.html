@@ -170,7 +170,7 @@
                                 <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Weight (lbs/kg)</th>
                             </tr>
                         </thead>
-                        <tbody id="results-table-body" class="bg-white divide-y divide-slate-200">
+                        <tbody id="results-table-body">
                             <tr>
                                 <td colspan="7" class="px-6 py-4 whitespace-nowrap text-sm text-slate-500 text-center">No workouts logged yet.</td>
                             </tr>
@@ -188,8 +188,8 @@
                            <li><strong>General Shaking:</strong> Shake out hands and arms to release tension.</li>
                            <li><strong>Static Stretches (20-30s each):</strong> Gently stretch forearm flexors and extensors, wrists, and fingers.</li>
                         </ul>
-                    </div>
-                </details>
+                    </article>
+                </div>
             </section>
 
         </main>
@@ -213,8 +213,8 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, collection, addDoc, query, orderBy, getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getAuth, signInWithCustomToken, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, addDoc, query, getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         document.addEventListener('DOMContentLoaded', async () => {
             const state = {
@@ -295,8 +295,6 @@
                     state.db = getFirestore(app);
                     state.auth = getAuth(app);
 
-                    // Only attempt custom token sign-in. If not present or fails, rely on onAuthStateChanged
-                    // to determine the user state (either logged in via reg.html or effectively anonymous).
                     if (typeof __initial_auth_token !== 'undefined') {
                         try {
                             await signInWithCustomToken(state.auth, __initial_auth_token);
@@ -310,9 +308,8 @@
                         if (user) {
                             state.userId = user.uid;
                             console.log("Firebase user ID:", state.userId);
-                            // The original '7-53.html' did not have history loading, but if it were added, it would go here.
+                            loadWorkoutHistory(); // Load history when user is authenticated
 
-                            // Update UI for logged-in user
                             userNamePlaceholder.textContent = user.displayName || user.email || user.uid.substring(0, 8);
                             userInfoDisplay.classList.remove('hidden');
                             registerLoginBtn.classList.add('hidden');
@@ -322,19 +319,18 @@
                             state.userId = crypto.randomUUID(); 
                             console.log("No user signed in. Using random ID for local operations:", state.userId);
 
-                            // Update UI for logged-out user
                             userNamePlaceholder.textContent = "Guest";
                             userInfoDisplay.classList.add('hidden');
                             registerLoginBtn.classList.remove('hidden');
                             logoutBtn.classList.add('hidden');
+                            resultsTableBody.innerHTML = `<tr><td colspan="7" class="px-6 py-4 whitespace-nowrap text-sm text-slate-500 text-center">Please log in to view saved workout history.</td></tr>`;
                         }
                     });
-                    // Logout button event listener
                     logoutBtn.addEventListener('click', async () => {
                         try {
                             await signOut(state.auth);
                             console.log("User logged out.");
-                            window.location.href = 'reg.html'; // Redirect to login page
+                            window.location.href = 'reg.html'; 
                         } catch (error) {
                             console.error("Error logging out:", error);
                         }
@@ -347,7 +343,6 @@
                 console.warn("Firebase config is missing projectId or is empty. Cloud persistence will not be available.");
                 state.userId = crypto.randomUUID(); 
             }
-            // End Firebase Initialization and Authentication
 
             function updateRing(percent) {
                 const offset = ringCircumference - (percent / 100) * ringCircumference;
@@ -425,7 +420,7 @@
                         if (state.isLiftPhase) {
                             logRep(); 
                             state.isLiftPhase = false;
-                            if (state.currentRep > state.maxReps) { // Check if rep count exceeds maxReps
+                            if (state.currentRep > state.maxReps) { 
                                 showSetSummary(); 
                             } else {
                                 runWorkoutTimer();
@@ -452,24 +447,24 @@
 
                 updateUpNextDisplay(); 
 
-                // Save workout summary to Firestore (if Firebase is set up)
                 if (state.db && state.userId !== 'anonymous') {
                     try {
                         const workoutSummary = {
-                            date: new Date().toISOString(), // ISO string for easy sorting/display
+                            date: new Date().toISOString(), 
                             gripType: state.workoutGripType,
                             weight: state.workoutWeight,
                             hand: state.workoutHand,
                             setNumber: state.currentSet,
                             totalReps: state.maxReps,
                             repDuration: state.liftDuration,
-                            totalLiftDuration: state.maxReps * state.liftDuration, // Assuming all reps completed
-                            totalRestDuration: (state.maxReps - 1) * state.restDuration, // Rest between reps
+                            totalLiftDuration: state.maxReps * state.liftDuration, 
+                            totalRestDuration: (state.maxReps - 1) * state.restDuration, 
                             userId: state.userId
                         };
                         const workoutsCollectionRef = collection(state.db, `artifacts/${appId}/users/${state.userId}/tension_repeater_workout_summaries`); 
                         await addDoc(workoutsCollectionRef, workoutSummary);
                         console.log("Workout summary saved successfully!");
+                        loadWorkoutHistory(); 
                     } catch (e) {
                         console.error("Error saving workout summary:", e);
                     }
@@ -518,6 +513,73 @@
                         <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-600">${result.weight}</td>
                     `;
                 });
+            }
+
+            async function loadWorkoutHistory() {
+                if (!state.db || !state.userId || state.userId === 'anonymous') {
+                    console.warn("Firebase not ready or user is anonymous, cannot load history.");
+                    resultsTableBody.innerHTML = `<tr><td colspan="7" class="px-6 py-4 whitespace-nowrap text-sm text-slate-500 text-center">Please log in to view saved workout history.</td></tr>`;
+                    return;
+                }
+
+                resultsTableBody.innerHTML = `<tr><td colspan="7" class="px-6 py-4 whitespace-nowrap text-sm text-slate-500 text-center">Loading workout history...</td></tr>`;
+                
+                try {
+                    const workoutsCollectionRef = collection(state.db, `artifacts/${appId}/users/${state.userId}/tension_repeater_workout_summaries`);
+                    const q = query(workoutsCollectionRef);
+                    const querySnapshot = await getDocs(q);
+
+                    let loadedSummaries = [];
+                    querySnapshot.forEach((doc) => {
+                        loadedSummaries.push(doc.data());
+                    });
+
+                    loadedSummaries.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+                    resultsTableBody.innerHTML = '';
+                    if (loadedSummaries.length === 0) {
+                        resultsTableBody.innerHTML = `<tr><td colspan="7" class="px-6 py-4 whitespace-nowrap text-sm text-slate-500 text-center">No past workouts logged for this protocol.</td></tr>`;
+                    } else {
+                        // Re-add the table headers before populating
+                        const tableHeaderHtml = `
+                            <thead>
+                                <tr>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Date</th>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Grip Type</th>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Hand</th>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Set #</th>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Total Reps</th>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Rep Duration (s)</th>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Weight (lbs/kg)</th>
+                                </tr>
+                            </thead>
+                            <tbody class="bg-white divide-y divide-slate-200"></tbody>
+                        `;
+                        resultsTableBody.innerHTML = tableHeaderHtml;
+                        const tbodyElement = resultsTableBody.querySelector('tbody');
+
+
+                        loadedSummaries.forEach((summary) => {
+                            const row = tbodyElement.insertRow(); // Insert into the new tbody
+                            row.className = 'hover:bg-slate-50';
+                            const workoutDate = new Date(summary.date);
+                            const formattedDate = workoutDate.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+
+                            row.innerHTML = `
+                                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-slate-900">${formattedDate}</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-600">${summary.gripType}</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-600">${summary.hand}</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-600">${summary.setNumber}</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-600">${summary.totalReps}</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-600">${summary.repDuration}</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-600">${summary.weight}</td>
+                            `;
+                        });
+                    }
+                } catch (e) {
+                    console.error("Error loading workout history:", e);
+                    resultsTableBody.innerHTML = `<tr><td colspan="7" class="px-6 py-4 whitespace-nowrap text-sm text-red-600 text-center">Error loading history: ${e.message}.</td></tr>`;
+                }
             }
 
             function updateUpNextDisplay() {
@@ -573,7 +635,7 @@
             cancelWorkoutBtn.addEventListener('click', resetWorkoutEngine);
             startNextSetBtn.addEventListener('click', startNextSetFlow);
 
-            renderLoggedResults();
+            loadWorkoutHistory();
         });
     </script>
 </body>
