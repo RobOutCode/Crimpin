@@ -81,7 +81,7 @@
                 </div>
             </a>
 
-            <a href="classicrepeaters" class="block">
+            <a href="classicrepeaters.html" class="block">
                 <div class="protocol-card p-6 flex flex-col items-center text-center">
                     <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-16 w-16 text-teal-500 mb-4">
                         <path d="M2 12h2l3 8l5-16l3 8h2"/>
@@ -126,7 +126,7 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getAuth, onAuthStateChanged, signOut, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
 
         document.addEventListener('DOMContentLoaded', () => {
             const userNamePlaceholder = document.getElementById('user-name-placeholder');
@@ -149,6 +149,13 @@
                     const app = initializeApp(firebaseConfig);
                     auth = getAuth(app);
                     console.log("Firebase Auth initialized.");
+                    // Attempt custom token sign-in if available
+                    if (typeof __initial_auth_token !== 'undefined') {
+                        signInWithCustomToken(auth, __initial_auth_token).catch(e => {
+                            console.warn("Custom token sign-in failed:", e.message);
+                            // If custom token sign-in fails, onAuthStateChanged will still handle it.
+                        });
+                    }
                 } catch (error) {
                     console.error("Error initializing Firebase Auth:", error);
                     // Handle error, e.g., display a message to the user
@@ -163,6 +170,7 @@
                     if (user) {
                         // User is signed in
                         console.log("User signed in:", user.uid);
+                        // Display user's displayName (first & last name), fallback to email, then UID
                         userNamePlaceholder.textContent = user.displayName || user.email || user.uid.substring(0, 8);
                         userInfoDisplay.classList.remove('hidden');
                         registerLoginBtn.classList.add('hidden');
