@@ -29,7 +29,9 @@
 <body class="bg-slate-50 text-slate-800">
 
     <div class="max-w-4xl mx-auto px-4 py-8 sm:px-6 lg:px-8">
-        
+        <div class="flex justify-end mb-4">
+            <a href="reg.html" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-md transition duration-300">Register / Log In</a>
+        </div>
         <header class="text-center mb-12">
             <h1 class="text-4xl md:text-5xl font-bold text-slate-900">Interactive Pinch Block Lifts</h1>
             <p class="mt-4 text-lg text-slate-600">Your guided session for developing isometric pinch strength.</p>
@@ -133,13 +135,12 @@
                         </svg>
                         <div class="absolute inset-0 flex flex-col items-center justify-center">
                             <div id="timer-status" class="text-3xl font-bold text-slate-900">PINCH!</div>
-                            <div id="timer-countdown" class="text-5xl font-bold text-slate-700">10</div>
+                            <div id="timer-countdown" class="5xl font-bold text-slate-700">10</div>
                         </div>
                     </div>
                     <div id="current-set-display" class="text-xl font-bold text-slate-800 mb-2">Cycle 1 of 5</div>
                     <div id="current-hand-display" class="text-lg font-semibold text-slate-600">Right Hand</div>
                     <div id="set-info" class="mt-2 text-md text-slate-500"></div>
-                    <!-- Display total times here -->
                     <div id="total-times-display" class="mt-4 text-base text-slate-700 hidden">
                         <p>Total Workout Time: <span id="total-workout-time">0m 0s</span></p>
                         <p>Total Pinch Time: <span id="total-lift-time">0m 0s</span></p>
@@ -219,7 +220,6 @@
         </main>
     </div>
 
-    <!-- YOUR FIREBASE CONFIGURATION -->
     <script>
         // This is the 'appId' field from your firebaseConfig, used by your existing code
         const __app_id = "1:1069153831535:web:b5275caff1a948aa831b9a"; // Replace with your actual appId
