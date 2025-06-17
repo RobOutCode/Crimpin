@@ -328,11 +328,13 @@
                     state.db = getFirestore(app);
                     state.auth = getAuth(app);
 
-                    // Sign in with custom token or anonymously
+                    // Only attempt custom token sign-in. If not present or fails, rely on onAuthStateChanged
+                    // to determine the user state (either logged in via reg.html or effectively anonymous).
                     if (typeof __initial_auth_token !== 'undefined') {
-                        await signInWithCustomToken(state.auth, __initial_auth_token);
-                    } else {
-                        await signInAnonymously(state.auth);
+                        await signInWithCustomToken(state.auth, __initial_auth_token).catch(e => {
+                            console.warn("Custom token sign-in failed:", e.message);
+                            // If custom token sign-in fails, onAuthStateChanged will still handle it.
+                        });
                     }
 
                     // Listen for auth state changes to get userId
@@ -349,10 +351,9 @@
                             logoutBtn.classList.remove('hidden');
 
                         } else {
-                            // This branch means user signed out or initial anonymous sign-in failed (unlikely if initApp succeeded)
-                            // If user explicitly signs out, userId will be null.
-                            state.userId = crypto.randomUUID(); // Fallback for edge cases
-                            console.log("User not authenticated, using random ID:", state.userId);
+                            // If user is not authenticated (no custom token, or signed out), use a random ID for local operations
+                            state.userId = crypto.randomUUID(); 
+                            console.log("No user signed in. Using random ID for local operations:", state.userId);
                             // Do not load history here if not authenticated, as it depends on user.uid
 
                             // Update UI for logged-out user
@@ -360,6 +361,7 @@
                             userInfoDisplay.classList.add('hidden');
                             registerLoginBtn.classList.remove('hidden');
                             logoutBtn.classList.add('hidden');
+                            historyTableBody.innerHTML = `<tr><td colspan="8" class="px-6 py-4 whitespace-nowrap text-sm text-slate-500 text-center">Please log in to view saved workout history.</td></tr>`;
                         }
                     });
                     // Logout button event listener
@@ -373,7 +375,7 @@
                         }
                     });
                 } catch (error) {
-                    console.error("Error during Firebase initialization or authentication:", error);
+                    console.error("Error during Firebase initialization:", error);
                     historyTableBody.innerHTML = `<tr><td colspan="8" class="px-6 py-4 whitespace-nowrap text-sm text-red-600 text-center">Error setting up Firebase: ${error.message}. Cloud persistence will not be available.</td></tr>`;
                     state.userId = crypto.randomUUID(); // Fallback for local operations
                 }
@@ -690,11 +692,11 @@
             async function loadWorkoutHistory() {
                 // Only load if Firebase is ready and user is authenticated with a proper UID
                 if (!state.db || !state.userId || state.userId === 'anonymous') { 
-                    console.warn("Firebase not ready to load history, or user is anonymous placeholder. Skipping history load.");
+                    console.warn("Firebase not ready to load history, or user is not authenticated. Skipping history load.");
                     // If firebase was not initialized, the initial placeholder message already exists.
                     // Otherwise, set a specific message if it was initialized but auth is not resolved yet for the user.
                     if (state.db) {
-                        historyTableBody.innerHTML = `<tr><td colspan="8" class="px-6 py-4 whitespace-nowrap text-sm text-slate-500 text-center">Waiting for user authentication to load history...</td></tr>`;
+                        historyTableBody.innerHTML = `<tr><td colspan="8" class="px-6 py-4 whitespace-nowrap text-sm text-slate-500 text-center">Please log in to view saved workout history.</td></tr>`;
                     }
                     return;
                 }
