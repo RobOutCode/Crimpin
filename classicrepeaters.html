@@ -226,7 +226,7 @@
 
         // This is your full Firebase project configuration object, stringified for your existing code
         const __firebase_config = JSON.stringify({
-          apiKey: "AIzaSyChVyJ-FU_q2ecKum3kVj8ptv-Z0_jGjGY",
+          apiKey: "AIzaSyChVyJ-FU_q2ecKum3kVj8ptV-Z0_jGIgY",
           authDomain: "crimptheory.firebaseapp.com",
           projectId: "crimptheory",
           storageBucket: "crimptheory.appspot.com",
@@ -341,7 +341,7 @@
 
             if (firebaseConfig && firebaseConfig.projectId) {
                 try {
-                    app = initializeApp(firebaseConfig);
+                    const app = initializeApp(firebaseConfig);
                     state.db = getFirestore(app);
                     state.auth = getAuth(app);
 
