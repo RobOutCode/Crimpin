@@ -28,7 +28,9 @@
 <body class="bg-slate-50 text-slate-800">
 
     <div class="max-w-4xl mx-auto px-4 py-8 sm:px-6 lg:px-8">
-        
+        <div class="flex justify-end mb-4">
+            <a href="reg.html" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-md transition duration-300">Register / Log In</a>
+        </div>
         <header class="text-center mb-12">
             <h1 class="text-4xl md:text-5xl font-bold text-slate-900">Crimp Theory</h1>
             <p class="mt-4 text-lg text-slate-600">Choose a protocol to start your training session.</p>
@@ -36,10 +38,8 @@
 
         <main class="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
 
-            <!-- Link to Max Weight 7-10 Second Lifts -->
             <a href="maxweight.html" class="block">
                 <div class="protocol-card p-6 flex flex-col items-center text-center">
-                    <!-- Icon for Max Weight: A dumbbell, symbolizing heavy lifting/maximal strength -->
                     <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-16 w-16 text-teal-500 mb-4">
                         <path d="M14.5 16.5l-3-3L10 14l-3-3"/>
                         <path d="M15 10l3 3 1-1"/>
@@ -51,10 +51,8 @@
                 </div>
             </a>
 
-            <!-- Link to Tension 'Standard' Repeaters -->
             <a href="7-53.html" class="block">
                 <div class="protocol-card p-6 flex flex-col items-center text-center">
-                    <!-- Icon for Tension Repeaters: A clock or stopwatch, indicating timed intervals and repetition -->
                     <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-16 w-16 text-teal-500 mb-4">
                         <circle cx="12" cy="12" r="10"/>
                         <polyline points="12 6 12 12 16 14"/>
@@ -64,10 +62,8 @@
                 </div>
             </a>
 
-            <!-- Link to Pinch Block Lifts -->
             <a href="pinch.html" class="block">
                 <div class="protocol-card p-6 flex flex-col items-center text-center">
-                    <!-- Icon for Pinch Block Lifts: A hand grabbing a square/block, representing a pinch grip -->
                     <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-16 w-16 text-teal-500 mb-4">
                         <path d="M7 10h1v4h-1c-.5 0-.5 1-1 1H4s.5-1 1-1h1V9c0-.5-.5-1-1-1H4s.5-1 1-1h1c.5 0 .5 1 1 1V6c0-.5-.5-1-1-1H4s.5-1 1-1h1c.5 0 .5 1 1 1V2a2 2 0 0 0-2-2H2a2 2 0 0 0-2 2v20a2 2 0 0 0 2 2h5a2 2 0 0 0 2-2v-4h1v-4h-1z"/>
                         <path d="M12 20h2v2h-2c-.5 0-.5-1-1-1h-1s.5-1 1-1h1v-2c0-.5-.5-1-1-1h-1s.5-1 1-1h1c.5 0 .5 1 1 1V9a2 2 0 0 0-2-2h-2a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2z"/>
@@ -79,10 +75,8 @@
                 </div>
             </a>
 
-            <!-- Link to Classic 7/3 Repeaters -->
             <a href="classicrepeaters" class="block">
                 <div class="protocol-card p-6 flex flex-col items-center text-center">
-                    <!-- Icon for Classic 7/3 Repeaters: A series of waves/pulse, representing endurance and repeated effort -->
                     <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-16 w-16 text-teal-500 mb-4">
                         <path d="M2 12h2l3 8l5-16l3 8h2"/>
                     </svg>
@@ -91,10 +85,8 @@
                 </div>
             </a>
 
-            <!-- Link to Master Workout History -->
             <a href="history.html" class="block md:col-span-2 lg:col-span-1 mx-auto max-w-sm w-full">
                 <div class="protocol-card p-6 flex flex-col items-center text-center h-full">
-                    <!-- Icon for Master History: A clipboard or document list -->
                     <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-16 w-16 text-slate-700 mb-4">
                         <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
                         <polyline points="14 2 14 8 20 8"/>
@@ -110,7 +102,6 @@
         </main>
     </div>
 
-    <!-- YOUR FIREBASE CONFIGURATION -->
     <script>
         // This is the 'appId' field from your firebaseConfig, used by your existing code
         const __app_id = "1:1069153831535:web:b5275caff1a948aa831b9a"; // Replace with your actual appId
