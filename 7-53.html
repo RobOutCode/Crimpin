@@ -52,7 +52,7 @@
                         </ul>
                     </article>
                     <article>
-                        <h3 class="text-lg font-semibold text-teal-600 mb-2">🛠️ Required Equipment</h3>
+                        <h3 class="lg font-semibold text-teal-600 mb-2">🛠️ Required Equipment</h3>
                          <ul class="list-disc list-inside space-y-1 text-slate-600">
                             <li>Tension Block</li>
                             <li>Loading Pin & Weights</li>
@@ -195,7 +195,7 @@
 
         // This is your full Firebase project configuration object, stringified for your existing code
         const __firebase_config = JSON.stringify({
-          apiKey: "AIzaSyChVyJ-FU_q2ecKum3kVj8ptv-Z0_jGjGY",
+          apiKey: "AIzaSyChVyJ-FU_q2ecKum3kVj8ptV-Z0_jGIgY",
           authDomain: "crimptheory.firebaseapp.com",
           projectId: "crimptheory",
           storageBucket: "crimptheory.appspot.com",
@@ -403,7 +403,7 @@
                         if (state.isLiftPhase) {
                             logRep(); 
                             state.isLiftPhase = false;
-                            if (state.currentRep > state.maxRps) { // Check if rep count exceeds maxReps
+                            if (state.currentRep > state.maxReps) { // Check if rep count exceeds maxReps
                                 showSetSummary(); 
                             } else {
                                 runWorkoutTimer();
