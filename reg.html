@@ -78,6 +78,7 @@
             const authMessage = document.getElementById('auth-message');
 
             let isSignUpMode = true; // State to track if we are in sign-up or log-in mode
+            let redirectInitiated = false; // Flag to prevent multiple redirects
 
             // Initialize Firebase (using provided global config)
             const firebaseConfigString = typeof __firebase_config !== 'undefined' ? __firebase_config : '{}';
@@ -103,29 +104,29 @@
                 authMessage.textContent = "Error: Firebase configuration missing. Authentication unavailable.";
             }
 
+            // Function to handle redirection
+            function redirectToHome(delay = 500) {
+                if (redirectInitiated) return; // Prevent multiple redirects
+                redirectInitiated = true;
+                
+                authMessage.textContent = `Already logged in. Redirecting to home...`; // Update message
+                setTimeout(() => { // Add a small delay for the message to be seen
+                    const redirectUrl = new URLSearchParams(window.location.search).get('redirect');
+                    if (redirectUrl) {
+                        window.location.href = `?artifact=${redirectUrl}`;
+                    } else {
+                        // For Canvas environment, this is the most reliable way to navigate between artifacts
+                        window.location.href = '?artifact=home-page'; 
+                    }
+                }, delay);
+            }
+
             // Check authentication state on load
             if (auth) {
                 onAuthStateChanged(auth, (user) => {
                     if (user) {
-                        // User is signed in. Redirect to home page or previous page.
-                        console.log("User already signed in:", user.uid);
-                        // In Canvas, we can't truly redirect to a different artifact directly from JS in this way
-                        // without page reload or special Canvas APIs. For a hosted app, this would be:
-                        // window.location.href = 'home.html';
-                        authMessage.textContent = `Already logged in as ${user.email || user.uid.substring(0, 8)}. Redirecting...`;
-                        // For Canvas environment, a simple way to indicate success is to load home.html artifact
-                        // This might not work perfectly as a direct "redirect" but signals success
-                        if (window.location.search.includes('redirect')) {
-                            // If redirected here from another page, try to go back
-                            const referrer = document.referrer;
-                            if (referrer && referrer.includes('artifact')) { // Basic check if referrer is another artifact
-                                window.location.href = referrer; // Go back to the page that redirected here
-                            } else {
-                                window.location.href = '?artifact=home-page'; // Fallback to home
-                            }
-                        } else {
-                            window.location.href = '?artifact=home-page'; // If direct access, go to home
-                        }
+                        console.log("User already signed in:", user.email || user.uid);
+                        redirectToHome(); // Redirect if already signed in
                     } else {
                         console.log("No user signed in.");
                     }
@@ -154,14 +155,7 @@
                         authMessage.textContent = "Log In successful! Redirecting...";
                         console.log("Login successful!");
                     }
-                    // On success, redirect to home page or where they came from
-                    // In a real app, you'd use a state management or URL parameter to redirect back
-                    const redirectUrl = new URLSearchParams(window.location.search).get('redirect');
-                    if (redirectUrl) {
-                        window.location.href = `?artifact=${redirectUrl}`;
-                    } else {
-                        window.location.href = '?artifact=home-page'; // Default to home page
-                    }
+                    redirectToHome(); // Redirect on successful sign-up/login
                 } catch (error) {
                     console.error("Authentication error:", error.code, error.message);
                     let displayMessage = "An unexpected error occurred.";
