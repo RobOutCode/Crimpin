@@ -295,65 +295,52 @@
                     state.db = getFirestore(app);
                     state.auth = getAuth(app);
 
-                    let signedIn = false;
+                    // Only attempt custom token sign-in. If not present or fails, rely on onAuthStateChanged
+                    // to determine the user state (either logged in via reg.html or effectively anonymous).
                     if (typeof __initial_auth_token !== 'undefined') {
                         try {
                             await signInWithCustomToken(state.auth, __initial_auth_token);
-                            signedIn = true;
                             console.log("Signed in with custom token.");
                         } catch (tokenError) {
-                            console.warn("Custom token sign-in failed:", tokenError.message, "Attempting anonymous sign-in.");
+                            console.warn("Custom token sign-in failed:", tokenError.message);
                         }
                     }
 
-                    if (!signedIn) {
+                    onAuthStateChanged(state.auth, (user) => {
+                        if (user) {
+                            state.userId = user.uid;
+                            console.log("Firebase user ID:", state.userId);
+                            // The original '7-53.html' did not have history loading, but if it were added, it would go here.
+
+                            // Update UI for logged-in user
+                            userNamePlaceholder.textContent = user.displayName || user.email || user.uid.substring(0, 8);
+                            userInfoDisplay.classList.remove('hidden');
+                            registerLoginBtn.classList.add('hidden');
+                            logoutBtn.classList.remove('hidden');
+
+                        } else {
+                            state.userId = crypto.randomUUID(); 
+                            console.log("No user signed in. Using random ID for local operations:", state.userId);
+
+                            // Update UI for logged-out user
+                            userNamePlaceholder.textContent = "Guest";
+                            userInfoDisplay.classList.add('hidden');
+                            registerLoginBtn.classList.remove('hidden');
+                            logoutBtn.classList.add('hidden');
+                        }
+                    });
+                    // Logout button event listener
+                    logoutBtn.addEventListener('click', async () => {
                         try {
-                            await signInAnonymously(state.auth);
-                            console.log("Signed in anonymously.");
-                            signedIn = true;
-                        } catch (anonError) {
-                            console.error("Anonymous sign-in failed:", anonError.message);
-                            // This part of the code was removed for brevity in the older context, but similar error handling logic exists
+                            await signOut(state.auth);
+                            console.log("User logged out.");
+                            window.location.href = 'reg.html'; // Redirect to login page
+                        } catch (error) {
+                            console.error("Error logging out:", error);
                         }
-                    }
-
-                    if (signedIn) {
-                         onAuthStateChanged(state.auth, (user) => {
-                            if (user) {
-                                state.userId = user.uid;
-                                console.log("Firebase user ID:", state.userId);
-                                // The original '7-53.html' did not have history loading, but if it were added, it would go here.
-
-                                // Update UI for logged-in user
-                                userNamePlaceholder.textContent = user.displayName || user.email || user.uid.substring(0, 8);
-                                userInfoDisplay.classList.remove('hidden');
-                                registerLoginBtn.classList.add('hidden');
-                                logoutBtn.classList.remove('hidden');
-
-                            } else {
-                                state.userId = crypto.randomUUID(); 
-                                console.log("User not authenticated, using random ID for local operations:", state.userId);
-
-                                // Update UI for logged-out user
-                                userNamePlaceholder.textContent = "Guest";
-                                userInfoDisplay.classList.add('hidden');
-                                registerLoginBtn.classList.remove('hidden');
-                                logoutBtn.classList.add('hidden');
-                            }
-                        });
-                        // Logout button event listener
-                        logoutBtn.addEventListener('click', async () => {
-                            try {
-                                await signOut(state.auth);
-                                console.log("User logged out.");
-                                window.location.href = 'reg.html'; // Redirect to login page
-                            } catch (error) {
-                                console.error("Error logging out:", error);
-                            }
-                        });
-                    }
+                    });
                 } catch (error) {
-                    console.error("Error during Firebase initialization or authentication:", error);
+                    console.error("Error during Firebase initialization:", error);
                     state.userId = crypto.randomUUID(); 
                 }
             } else {
