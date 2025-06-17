@@ -118,7 +118,7 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getAuth, signInWithCustomToken, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, collection, query, getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         document.addEventListener('DOMContentLoaded', async () => {
@@ -306,6 +306,7 @@
                         <td>${summary.gripType || summary.pinchType || 'N/A'}</td>
                         <td>${summary.weight || 'N/A'}</td>
                         <td>${summary.numSets || summary.setsPerGrip || summary.totalCycles || 'N/A'}</td>
+                        <td>${summary.liftDurationPerHold || summary.holdDuration || 'N/A'}</td>
                         <td>${formatTime(summary.totalWorkoutDuration || 0)}</td>
                         <td>${formatTime(summary.totalLiftDuration || 0)}</td>
                         <td>${formatTime(summary.totalRestDuration || 0)}</td>
