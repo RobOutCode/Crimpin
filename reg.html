@@ -83,11 +83,11 @@
             const hasRedirectedInSession = sessionStorage.getItem('redirectedFromAuthPage');
 
             // If we've already redirected in this session, don't attempt it again immediately
+            // This is primarily to prevent re-entering a loop if the page reloads after a redirect attempt.
             if (hasRedirectedInSession === 'true') {
                 console.log("Already redirected in this session. Clearing flag.");
                 sessionStorage.removeItem('redirectedFromAuthPage'); // Clear the flag for future fresh visits
-                // Optional: You might want to stop here or just let the page render normally
-                // if it's not currently stuck in a loop. For a loop, this is key.
+                // Immediately return to prevent further script execution that might trigger another redirect
                 return; 
             }
 
@@ -123,16 +123,13 @@
                 authMessage.textContent = `Authentication successful! Redirecting to home...`;
                 
                 // Use window.location.replace to prevent adding to browser history
-                // This might help prevent the back button from returning to the looping page
                 const redirectUrl = new URLSearchParams(window.location.search).get('redirect');
                 if (redirectUrl) {
                     window.location.replace(`?artifact=${redirectUrl}`);
                 } else {
                     window.location.replace('?artifact=home-page'); 
                 }
-                // Important: Immediately halt script execution after attempting redirect
-                // This is crucial in environments where page unload is not instantaneous.
-                throw new Error('Redirecting...'); // Throwing an error will stop script execution
+                // No more window.stop() or throw error here, let the browser handle navigation.
             }
 
             // Check authentication state on load
@@ -140,8 +137,12 @@
                 onAuthStateChanged(auth, (user) => {
                     if (user) {
                         console.log("User already signed in:", user.email || user.uid);
-                        redirectToHome(); // Redirect if already signed in
-                        // No return needed here, as redirectToHome() now throws an error.
+                        // Only attempt redirect if we haven't already.
+                        // The sessionStorage check at the top of DOMContentLoaded handles reloads.
+                        // This specific check ensures it only runs once per auth state change.
+                        if (sessionStorage.getItem('redirectedFromAuthPage') !== 'true') {
+                           redirectToHome(); 
+                        }
                     } else {
                         console.log("No user signed in.");
                     }
@@ -169,7 +170,6 @@
                         console.log("Login successful!");
                     }
                     redirectToHome(); // Redirect on successful sign-up/login
-                    // No return needed here, as redirectToHome() now throws an error.
                 } catch (error) {
                     console.error("Authentication error:", error.code, error.message);
                     let displayMessage = "An unexpected error occurred.";
