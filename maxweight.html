@@ -79,8 +79,8 @@
                             <li><strong>Dynamic Stretches & Mobility (5-7 min):</strong> Arm circles, shoulder rolls, wrist circles, and finger extensions.</li>
                             <li><strong>Light Pulls on Tension Block (5-8 min):</strong> Perform light, low-intensity pulls with various grips. This includes 2-3 ramp-up sets, gradually increasing weight to 80% of your estimated working weight.</li>
                         </ul>
-                    </div>
-                </details>
+                    </article>
+                </div>
             </section>
             
             <section id="weight-test" class="section-card p-6 md:p-8">
@@ -217,8 +217,8 @@
                            <li><strong>General Shaking:</strong> Shake out hands and arms to release tension.</li>
                            <li><strong>Static Stretches (20-30s each):</strong> Gently stretch forearm flexors and extensors, wrists, and fingers.</li>
                         </ul>
-                    </div>
-                </details>
+                    </article>
+                </div>
             </section>
 
         </main>
@@ -227,8 +227,8 @@
     <script type="module">
         // Firebase Imports
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, collection, addDoc, query, orderBy, getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getAuth, signInWithCustomToken, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, addDoc, query, getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         document.addEventListener('DOMContentLoaded', async () => {
             const state = {
@@ -257,7 +257,7 @@
 
                 // Time Tracking
                 workoutStartTime: null,
-                totalWorkoutDuration: 0, // Overall elapsed time for the workout session
+                totalWorkoutDuration: 0, // Overall elapsed elapsed time for the workout session
                 totalLiftDuration: 0,   // Accumulated time under tension
                 totalRestDuration: 0,   // Accumulated rest time
 
