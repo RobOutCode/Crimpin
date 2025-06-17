@@ -109,7 +109,6 @@
                 <p class="mb-4 text-slate-600">This protocol enhances strength-endurance and anaerobic capacity with a 7s ON / 3s OFF cycle.</p>
                 <ul class="list-disc list-inside text-slate-600 mb-6 space-y-1">
                     <li><strong>Sets per Grip:</strong> Perform 1 to 3 sets per chosen grip type. One set includes 6 reps for both hands (e.g., Right Hand Reps 1-6, then Left Hand Reps 1-6).</li>
-                    <li><strong>Reps per Hand:</strong> Each hand performs 6 repetitions per set.</li>
                     <li><strong>Hold/Rest Cycle:</strong> 7 seconds ON (hold), 3 seconds OFF (rest) between reps.</li>
                     <li><strong>Rest Between Sets:</strong> Take a 2-5 minute rest AFTER both hands have completed all 6 reps for a set.</li>
                 </ul>
@@ -219,34 +218,18 @@
                            <li><strong>General Shaking:</strong> Shake out hands and arms to release tension.</li>
                            <li><strong>Static Stretches (20-30s each):</strong> Gently stretch forearm flexors and extensors, wrists, and fingers.</li>
                         </ul>
-                    </div>
-                </details>
+                    </article>
+                </div>
             </section>
 
         </main>
     </div>
 
-    <script>
-        // This is the 'appId' field from your firebaseConfig, used by your existing code
-        const __app_id = "1:1069153831535:web:b5275caff1a948aa831b9a";
-
-        // This is your full Firebase project configuration object, stringified for your existing code
-        const __firebase_config = JSON.stringify({
-          apiKey: "AIzaSyChVyJ-FU_q2ecKum3kVj8ptV-Z0_jGIgY",
-          authDomain: "crimptheory.firebaseapp.com",
-          projectId: "crimptheory",
-          storageBucket: "crimptheory.appspot.com",
-          messagingSenderId: "1069153831535",
-          appId: "1:1069153831535:web:b5275caff1a948aa831b9a",
-          measurementId: "G-8DGM79J607"
-        });
-    </script>
-
     <script type="module">
         // Firebase Imports
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, collection, addDoc, query, orderBy, getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getAuth, signInWithCustomToken, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, addDoc, query, getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         document.addEventListener('DOMContentLoaded', async () => {
             const state = {
