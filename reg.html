@@ -122,14 +122,8 @@
                 
                 authMessage.textContent = `Authentication successful! Redirecting to home...`;
                 
-                // Use window.location.replace to prevent adding to browser history
-                const redirectUrl = new URLSearchParams(window.location.search).get('redirect');
-                if (redirectUrl) {
-                    window.location.replace(`?artifact=${redirectUrl}`);
-                } else {
-                    window.location.replace('?artifact=home-page'); 
-                }
-                // No more window.stop() or throw error here, let the browser handle navigation.
+                // Redirect directly to home.html
+                window.location.replace('home.html');
             }
 
             // Check authentication state on load
