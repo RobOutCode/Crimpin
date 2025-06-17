@@ -168,69 +168,50 @@
                     state.auth = getAuth(app);
                     firebaseStatusDisplay.textContent = "Firebase Status: Connected.";
 
-                    let signedIn = false;
+                    // Only attempt custom token sign-in. If not present or fails, onAuthStateChanged will handle.
                     if (typeof __initial_auth_token !== 'undefined') {
                         try {
                             await signInWithCustomToken(state.auth, __initial_auth_token);
-                            signedIn = true;
                         } catch (tokenError) {
-                            console.warn("Custom token sign-in failed:", tokenError.message, "Attempting anonymous sign-in.");
+                            console.warn("Custom token sign-in failed:", tokenError.message);
                         }
                     }
 
-                    if (!signedIn) {
+                    onAuthStateChanged(state.auth, (user) => {
+                        if (user) {
+                            state.userId = user.uid;
+                            userIdDisplay.textContent = state.userId;
+                            loadAllWorkoutHistory(); // Load history after user is authenticated
+
+                            // Update UI for logged-in user
+                            userNamePlaceholder.textContent = user.displayName || user.email || user.uid.substring(0, 8);
+                            userInfoDisplay.classList.remove('hidden');
+                            registerLoginBtn.classList.add('hidden');
+                            logoutBtn.classList.remove('hidden');
+
+                        } else {
+                            state.userId = "Anonymous (Local)"; // Indicate local session if not authenticated
+                            userIdDisplay.textContent = state.userId;
+                            firebaseStatusDisplay.textContent = "Firebase Status: Not authenticated. Data is local to this session or requires login.";
+                            loadAllWorkoutHistory(); // Attempt to load with local/anonymous ID (if Firebase rules allow read for unauthenticated, otherwise it will fail)
+
+                            // Update UI for logged-out user
+                            userNamePlaceholder.textContent = "Guest";
+                            userInfoDisplay.classList.add('hidden');
+                            registerLoginBtn.classList.remove('hidden');
+                            logoutBtn.classList.add('hidden');
+                        }
+                    });
+                    // Logout button event listener
+                    logoutBtn.addEventListener('click', async () => {
                         try {
-                            await signInAnonymously(state.auth);
-                            signedIn = true;
-                        } catch (anonError) {
-                            console.error("Anonymous sign-in failed:", anonError.message);
-                            firebaseStatusDisplay.textContent = "Firebase Status: Authentication Failed. Cloud persistence unavailable.";
-                            state.db = null; 
-                            state.auth = null; 
+                            await signOut(state.auth);
+                            console.log("User logged out.");
+                            window.location.href = 'reg.html'; // Redirect to login page
+                        } catch (error) {
+                            console.error("Error logging out:", error);
                         }
-                    }
-
-                    if (signedIn) {
-                        onAuthStateChanged(state.auth, (user) => {
-                            if (user) {
-                                state.userId = user.uid;
-                                userIdDisplay.textContent = state.userId;
-                                loadAllWorkoutHistory(); // Load history after user is authenticated
-
-                                // Update UI for logged-in user
-                                userNamePlaceholder.textContent = user.displayName || user.email || user.uid.substring(0, 8);
-                                userInfoDisplay.classList.remove('hidden');
-                                registerLoginBtn.classList.add('hidden');
-                                logoutBtn.classList.remove('hidden');
-
-                            } else {
-                                state.userId = "Anonymous (Local)";
-                                userIdDisplay.textContent = state.userId;
-                                firebaseStatusDisplay.textContent = "Firebase Status: Signed in anonymously. Data is local to this session.";
-                                // If already signed in anonymously and onAuthStateChanged fires with null user
-                                // this might mean an issue, or just the very initial state before a user is established.
-                                // We'll just show local ID and note potential persistence limitation.
-                                // For consistency, if Firebase is connected but no user, we still attempt to load with the anonymous ID.
-                                loadAllWorkoutHistory(); // Attempt to load even with anonymous ID
-
-                                // Update UI for logged-out user
-                                userNamePlaceholder.textContent = "Guest";
-                                userInfoDisplay.classList.add('hidden');
-                                registerLoginBtn.classList.remove('hidden');
-                                logoutBtn.classList.add('hidden');
-                            }
-                        });
-                        // Logout button event listener
-                        logoutBtn.addEventListener('click', async () => {
-                            try {
-                                await signOut(state.auth);
-                                console.log("User logged out.");
-                                window.location.href = 'reg.html'; // Redirect to login page
-                            } catch (error) {
-                                console.error("Error logging out:", error);
-                            }
-                        });
-                    }
+                    });
                 } else {
                     firebaseStatusDisplay.textContent = "Firebase Status: Configuration Missing. Cloud persistence unavailable.";
                     state.userId = "Local Session (No Cloud)";
@@ -239,7 +220,7 @@
                     renderWorkoutHistory(); // Render empty table or a no-data message
                 }
             } catch (error) {
-                console.error("Error during Firebase initialization or authentication:", error);
+                console.error("Error during Firebase initialization:", error);
                 firebaseStatusDisplay.textContent = `Firebase Status: Error (${error.message}). Cloud persistence unavailable.`;
                 state.userId = "Local Session (Error)";
                 userIdDisplay.textContent = state.userId;
@@ -248,7 +229,9 @@
 
             // --- Load All Workout History ---
             async function loadAllWorkoutHistory() {
-                if (!state.db || !state.userId) { 
+                // Ensure Firebase is ready and userId is available (even if it's the "Anonymous (Local)" placeholder)
+                // If user is truly anonymous and Firebase rules don't allow reads, this will result in permission denied.
+                if (!state.db || !state.userId || state.userId === 'Loading...') { 
                     historyTableBody.innerHTML = `<tr><td colspan="9" class="empty-message">Cannot load history. Firebase not initialized or user ID is unavailable.</td></tr>`;
                     return;
                 }
@@ -258,6 +241,8 @@
 
                 for (const collectionName of protocolCollections) {
                     try {
+                        // For authenticated users, userId is uid. For unauthenticated, it's a random UUID or 'Anonymous (Local)'.
+                        // Firestore rules will determine if the read is allowed for these cases.
                         const workoutsCollectionRef = collection(state.db, `artifacts/${appId}/users/${state.userId}/${collectionName}`);
                         const q = query(workoutsCollectionRef); 
                         const querySnapshot = await getDocs(q);
@@ -288,7 +273,11 @@
                         });
                     } catch (e) {
                         console.error(`Error loading history from ${collectionName}:`, e);
-                        // Do not stop loading other collections, just log the error
+                        // If it's a permission error for an authenticated user, or if anonymous access is denied by rules.
+                        if (e.code === 'permission-denied') {
+                             historyTableBody.innerHTML = `<tr><td colspan="9" class="empty-message">Access denied to workout history. Please ensure you are logged in.</td></tr>`;
+                             return; // Stop trying to load other collections if permissions are the issue.
+                        }
                     }
                 }
                 
