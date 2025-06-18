@@ -74,7 +74,7 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, updateProfile } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, updateProfile, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, doc, setDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
 
@@ -109,6 +109,15 @@
                     auth = getAuth(app);
                     db = getFirestore(app);
                     console.log("Firebase Auth and Firestore initialized.");
+
+                    if (typeof __initial_auth_token !== 'undefined') {
+                        signInWithCustomToken(auth, __initial_auth_token).catch(e => {
+                            console.warn("Custom token sign-in failed on reg.html:", e.message);
+                            // This catch prevents the error from stopping further execution,
+                            // but keeps the warning for debugging.
+                        });
+                    }
+
                 } catch (error) {
                     console.error("Error initializing Firebase:", error);
                     authMessage.textContent = "Error: Firebase initialization failed. Authentication and data storage unavailable.";
@@ -171,7 +180,8 @@
 
                         // Store additional user data in Firestore
                         if (db) {
-                            const userDocRef = doc(db, `artifacts/${__app_id}/users/${user.uid}/profile/details`);
+                            const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+                            const userDocRef = doc(db, `artifacts/${appId}/users/${user.uid}/profile/details`);
                             await setDoc(userDocRef, {
                                 firstName: firstName,
                                 lastName: lastName,
