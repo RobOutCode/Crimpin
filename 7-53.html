@@ -618,4 +618,24 @@
                             console.error("Error logging out:", error);
                         }
                     });
-              
+                } catch (error) {
+                    console.error("Error during Firebase initialization:", error);
+                    state.userId = crypto.randomUUID(); 
+                }
+            } else {
+                console.warn("Firebase config is missing projectId or is empty. Cloud persistence will not be available.");
+                state.userId = crypto.randomUUID(); 
+            }
+
+            // Attach Event Listeners
+            startTestBtn.addEventListener('click', startTestTimer);
+            saveWeightBtn.addEventListener('click', saveWeight);
+            startWorkoutBtn.addEventListener('click', runWorkoutTimer);
+            cancelWorkoutBtn.addEventListener('click', resetWorkoutEngine);
+            startNextSetBtn.addEventListener('click', startNextSetFlow);
+
+            loadWorkoutHistory(); // Initial load of history on page load
+        });
+    </script>
+</body>
+</html>
