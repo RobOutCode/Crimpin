@@ -34,6 +34,7 @@
                 Welcome, <span id="user-name-placeholder" class="text-teal-600">Guest</span>!
             </div>
             <div class="flex space-x-2">
+                <!-- Corrected href to reg.html -->
                 <a href="reg.html" id="register-login-btn" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-md transition duration-300">Register / Log In</a>
                 <button type="button" id="logout-btn" class="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded-md transition duration-300 hidden">Log Out</button>
             </div>
@@ -78,8 +79,9 @@
                             <li><strong>Dynamic Stretches & Mobility (5-7 min):</strong> Arm circles, shoulder rolls, wrist circles, and finger extensions.</li>
                             <li><strong>Light Hangs/Pulls (5-8 min):</strong> Perform light, low-intensity hangs or pulls with various grips. This includes 2-3 ramp-up sets, gradually increasing weight to 80% of your estimated working weight.</li>
                         </ul>
-                    </article>
-                </div>
+                    </div>
+                    <!-- Removed misplaced </article> tag -->
+                </details>
             </section>
             
             <section id="weight-test" class="section-card p-6 md:p-8">
@@ -325,7 +327,7 @@
             const formattedDate = now.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
             
             const newEntry = {
-                date: formattedDate,
+                date: now.toISOString(), // Changed to ISO string for better sorting and precision
                 gripType: state.workoutGripType,
                 hand: state.hands[state.currentHandIndex], 
                 weight: state.workoutWeight,
@@ -420,7 +422,7 @@
             totalWorkoutTimeSpan.textContent = formatTime(state.totalWorkoutDuration);
             totalLiftTimeSpan.textContent = formatTime(state.totalLiftDuration);
             totalRestTimeSpan.textContent = formatTime(state.totalRestDuration);
-            totalTimesDisplay.classList.remove('hidden');
+            totalTimesDisplay.classList.remove('hidden'); // Show total times
 
             setActionsDiv.classList.remove('hidden');
             cancelWorkoutBtn.classList.add('hidden');
@@ -452,6 +454,7 @@
         }
 
         function resetWorkoutForNewSession() {
+            console.log("resetWorkoutForNewSession: Resetting workout for a new session.");
             clearInterval(state.workoutTimerId);
             state.currentSet = 1;
             state.currentRep = 1;
@@ -463,13 +466,13 @@
             state.workoutStartTime = null;
 
             workoutSetupDiv.classList.remove('hidden');
-            workoutEngineDiv.classList.add('hidden');
+            workoutEngineDiv.classList.add('hidden'); // Ensure engine is hidden
             updateRing(0);
             timerStatus.textContent = "HOLD!"; 
             timerCountdown.textContent = state.holdDuration; 
             setActionsDiv.classList.add('hidden');
-            cancelWorkoutBtn.classList.remove('hidden'); 
-            totalTimesDisplay.classList.add('hidden');
+            cancelWorkoutBtn.classList.remove('hidden'); // Ensure cancel button is visible when in setup mode
+            totalTimesDisplay.classList.add('hidden'); // Hide total times
 
             renderCurrentSessionLifts();
             updateUpNextDisplay();
@@ -477,8 +480,9 @@
 
         // --- Firestore Loading and Display of Workout History ---
         async function loadWorkoutHistory() {
+            console.log("loadWorkoutHistory: Attempting to load workout history.");
             if (!state.db || !state.userId || state.userId === 'anonymous') { 
-                console.warn("Firebase not ready to load history, or user is not authenticated. Skipping history load.");
+                console.warn("loadWorkoutHistory: Firebase not ready to load history, or user is not authenticated. Skipping history load.");
                 if (state.db) {
                     historyTableBody.innerHTML = `<tr><td colspan="8" class="px-6 py-4 whitespace-nowrap text-sm text-slate-500 text-center">Please log in to view saved workout history.</td></tr>`;
                 }
@@ -501,8 +505,9 @@
                 state.workoutHistorySummaries.sort((a, b) => new Date(b.date) - new Date(a.date));
 
                 renderWorkoutHistory();
+                console.log("loadWorkoutHistory: Workout history loaded successfully.");
             } catch (e) {
-                console.error("Error loading workout history:", e);
+                console.error("loadWorkoutHistory: Error loading workout history:", e);
                 historyTableBody.innerHTML = `<tr><td colspan="8" class="px-6 py-4 whitespace-nowrap text-sm text-red-600 text-center">Error loading history: ${e.message}.</td></tr>`;
             }
         }
@@ -534,6 +539,183 @@
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-600">${formatTime(summary.totalRestDuration)}</td>
                 `;
             });
+        }
+        
+        // --- Test Phase Logic ---
+        function startTestTimer() {
+            console.log("startTestTimer: Starting test timer.");
+            clearInterval(state.testTimerId);
+            startTestBtn.disabled = true;
+            saveWeightBtn.disabled = true;
+            state.testSeconds = 10;
+            testTimerDisplay.textContent = state.testSeconds;
+            
+            state.testTimerId = setInterval(() => {
+                state.testSeconds--;
+                testTimerDisplay.textContent = state.testSeconds;
+                if (state.testSeconds <= 0) {
+                    clearInterval(state.testTimerId);
+                    testTimerDisplay.textContent = "Test Complete!";
+                    startTestBtn.disabled = false;
+                    saveWeightBtn.disabled = false;
+                    console.log("startTestTimer: Test complete.");
+                }
+            }, 1000);
+        }
+
+        function saveWeight() {
+            console.log("saveWeight: Saving weight for workout.");
+            state.workoutGripType = gripTestTypeInput.value;
+            state.workoutWeight = parseFloat(testWeightInput.value);
+            workoutGripTypeInput.value = state.workoutGripType;
+            workoutWeightInput.value = state.workoutWeight;
+        }
+
+        // --- Main Workout Logic ---
+        function startWorkoutFlow() {
+            console.log("startWorkoutFlow: Starting workout flow.");
+            // Hide setup, show engine
+            workoutSetupDiv.classList.add('hidden');
+            workoutEngineDiv.classList.remove('hidden');
+            setActionsDiv.classList.add('hidden'); 
+            cancelWorkoutBtn.classList.remove('hidden');
+            upNextDisplay.classList.add('hidden');
+            totalTimesDisplay.classList.add('hidden');
+
+            // Update state from inputs
+            state.workoutGripType = workoutGripTypeInput.value;
+            state.workoutWeight = parseFloat(workoutWeightInput.value);
+            state.setsPerGrip = parseInt(setsPerGripInput.value);
+
+            // Reset for a new workout session
+            state.currentSet = 1;
+            state.currentRep = 1; // Start with first rep
+            state.currentHandIndex = 0; // Starts with Right Hand
+            state.currentSessionLifts = []; // Clear individual lifts from previous session
+            state.totalLiftDuration = 0;
+            state.totalRestDuration = 0;
+            state.workoutStartTime = Date.now(); // Start tracking overall workout time
+
+            renderCurrentSessionLifts(); // Clear the current session table
+
+            state.currentWorkoutPhase = 'hold'; // Start with the first hold
+            console.log("startWorkoutFlow: Calling runWorkoutPhase for initial hold.");
+            runWorkoutPhase(); // Start the first lift
+        }
+
+        function runWorkoutPhase() {
+            console.log(`runWorkoutPhase: Phase: ${state.currentWorkoutPhase}, Set: ${state.currentSet}, Rep: ${state.currentRep}, Hand: ${state.hands[state.currentHandIndex]}`);
+            clearInterval(state.workoutTimerId);
+
+            // Update display based on current phase and hand
+            currentSetDisplay.textContent = `Set ${state.currentSet} of ${state.setsPerGrip}`;
+            currentHandDisplay.textContent = `${state.hands[state.currentHandIndex]} Hand - Rep ${state.currentRep} of ${state.repsPerCycle}`; // Added rep counter
+            setInfo.textContent = `Grip: ${state.workoutGripType} | Weight: ${state.workoutWeight} lbs/kg`;
+
+            let currentTotalDuration = 0;
+
+            // Set timer properties based on the current phase
+            switch (state.currentWorkoutPhase) {
+                case 'hold':
+                    state.countdown = state.holdDuration;
+                    timerStatus.textContent = "HOLD!";
+                    timerStatus.classList.remove('text-green-600', 'text-slate-900');
+                    timerStatus.classList.add('text-red-600');
+                    progressRing.classList.remove('text-green-500');
+                    progressRing.classList.add('text-teal-500');
+                    currentTotalDuration = state.holdDuration;
+                    break;
+                case 'rest-short': // Rest between reps (3s)
+                    state.countdown = state.restBetweenReps;
+                    timerStatus.textContent = "REST";
+                    timerStatus.classList.remove('text-red-600', 'text-slate-900');
+                    timerStatus.classList.add('text-green-600');
+                    progressRing.classList.remove('text-teal-500');
+                    progressRing.classList.add('text-green-500');
+                    currentTotalDuration = state.restBetweenReps;
+                    break;
+                case 'long-rest': // Rest after both hands complete a set (3min)
+                    state.countdown = state.longRestDuration;
+                    timerStatus.textContent = "LONG REST";
+                    timerStatus.classList.remove('text-red-600', 'text-slate-900');
+                    timerStatus.classList.add('text-green-600');
+                    progressRing.classList.remove('text-teal-500');
+                    progressRing.classList.add('text-green-500');
+                    currentTotalDuration = state.longRestDuration;
+                    break;
+                default:
+                    state.countdown = 0;
+                    timerStatus.textContent = "Error";
+                    currentTotalDuration = 1;
+            }
+            progressRing.style.strokeDashoffset = ringCircumference; // Reset ring to full for countdown
+
+            // Display initial countdown value immediately
+            timerCountdown.textContent = state.currentWorkoutPhase === 'long-rest' ? formatTime(state.countdown) : state.countdown;
+
+            updateUpNextDisplay();
+
+            state.workoutTimerId = setInterval(() => {
+                // Update total durations based on the active phase
+                if (state.currentWorkoutPhase === 'hold') {
+                    state.totalLiftDuration++; // Accumulates hold time
+                } else if (state.currentWorkoutPhase === 'rest-short' || state.currentWorkoutPhase === 'long-rest') {
+                    state.totalRestDuration++;
+                }
+
+                state.countdown--;
+                // Update countdown display
+                timerCountdown.textContent = state.currentWorkoutPhase === 'long-rest' ? formatTime(state.countdown) : state.countdown;
+                updateRing((state.countdown / currentTotalDuration) * 100);
+
+                if (state.countdown < 0) {
+                    console.log(`runWorkoutPhase: Countdown finished for ${state.currentWorkoutPhase}. Calling handlePhaseEnd.`);
+                    handlePhaseEnd();
+                }
+            }, 1000);
+        }
+
+        function handlePhaseEnd() {
+            clearInterval(state.workoutTimerId);
+            console.log(`handlePhaseEnd: Current phase was ${state.currentWorkoutPhase}`);
+
+            switch (state.currentWorkoutPhase) {
+                case 'hold':
+                    logLiftResult();
+                    if (state.currentRep < state.repsPerCycle) {
+                        state.currentRep++;
+                        state.currentWorkoutPhase = 'rest-short'; // Go to 3s rest for next rep
+                    } else { // All reps for current hand are done
+                        state.currentRep = 1; // Reset rep counter for next hand/set
+                        if (state.currentHandIndex === 0) { // Right hand finished its cycle of reps
+                            state.currentHandIndex = 1; // Switch to Left hand
+                            state.currentWorkoutPhase = 'hold'; // Left hand starts its reps immediately
+                        } else { // Left hand finished its cycle of reps (both hands for this set are done)
+                            state.currentHandIndex = 0; // Reset to Right hand for next set
+                            state.currentSet++;
+                            if (state.currentSet <= state.setsPerGrip) {
+                                state.currentWorkoutPhase = 'long-rest'; // Go to 3min long rest
+                            } else {
+                                state.currentWorkoutPhase = 'completed'; // All sets done
+                            }
+                        }
+                    }
+                    break;
+                case 'rest-short': // Finished 3s rest between reps
+                    state.currentWorkoutPhase = 'hold'; // Go to the next rep's hold
+                    break;
+                case 'long-rest': // Finished 3min rest between sets
+                    state.currentWorkoutPhase = 'hold'; // Start the first hold of the next set (Right hand)
+                    break;
+            }
+
+            if (state.currentWorkoutPhase === 'completed') {
+                console.log("handlePhaseEnd: Workout completed.");
+                showWorkoutComplete();
+            } else {
+                console.log(`handlePhaseEnd: Transitioning to phase ${state.currentWorkoutPhase}. Calling runWorkoutPhase.`);
+                runWorkoutPhase();
+            }
         }
         
         // --- DOMContentLoaded Listener and Event Attachments ---
