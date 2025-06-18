@@ -79,8 +79,8 @@
                             <li><strong>Dynamic Stretches & Mobility (5-7 min):</strong> Arm circles, shoulder rolls, wrist circles, and finger extensions.</li>
                             <li><strong>Light Pulls on Tension Block (5-8 min):</strong> Perform light, low-intensity pulls with various grips. This includes 2-3 ramp-up sets, gradually increasing weight to 80% of your estimated working weight.</li>
                         </ul>
-                    </div>
-                </details>
+                    </article>
+                </div>
             </section>
             
             <section id="weight-test" class="section-card p-6 md:p-8">
@@ -216,68 +216,351 @@
         import { getAuth, signInWithCustomToken, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, collection, addDoc, query, getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        document.addEventListener('DOMContentLoaded', async () => {
-            const state = {
-                // Firebase
-                db: null,
-                auth: null,
-                userId: 'anonymous', // Default to anonymous
+        // State object (should be accessible globally by functions)
+        const state = {
+            // Firebase
+            db: null,
+            auth: null,
+            userId: 'anonymous', // Default to anonymous
 
-                // Test Phase State
-                testWeight: 40,
-                testTimerId: null,
-                testSeconds: 10,
+            // Test Phase State
+            testWeight: 40,
+            testTimerId: null,
+            testSeconds: 10,
 
-                // Workout Phase State
-                workoutGripType: '20mm Half-Crimp',
-                workoutWeight: 40,
-                workoutTimerId: null,
-                currentRep: 1,
-                maxReps: 5,
-                currentSet: 1, 
-                isLiftPhase: true,
-                liftDuration: 7,
-                restDuration: 53, 
-                longRestDuration: 180, 
-                countdown: 0,
-                workoutResults: [] 
+            // Workout Phase State
+            workoutGripType: '20mm Half-Crimp',
+            workoutWeight: 40,
+            workoutTimerId: null,
+            currentRep: 1,
+            maxReps: 5,
+            currentSet: 1, 
+            isLiftPhase: true,
+            liftDuration: 7,
+            restDuration: 53, 
+            longRestDuration: 180, 
+            countdown: 0,
+            workoutResults: [] 
+        };
+
+        // DOM element references (will be assigned later inside DOMContentLoaded)
+        let startTestBtn, testTimerDisplay, testWeightInput, gripTestTypeInput, saveWeightBtn;
+        let workoutGripTypeInput, workoutWeightInput, workoutHandSelect, startWorkoutBtn, cancelWorkoutBtn, startNextSetBtn, setActionsDiv;
+        let workoutSetupDiv, workoutEngineDiv, timerStatus, timerCountdown, currentSetDisplay, repCounter, setInfo, progressRing;
+        let resultsTableBody, upNextDisplay, upNextText;
+        let userNamePlaceholder, userInfoDisplay, registerLoginBtn, logoutBtn;
+
+        const ringCircumference = 2 * Math.PI * 45; 
+
+        // --- Utility Functions (defined globally in module scope) ---
+        function updateRing(percent) {
+            const offset = ringCircumference - (percent / 100) * ringCircumference;
+            progressRing.style.strokeDashoffset = offset;
+        }
+
+        function formatTime(seconds) {
+            const minutes = Math.floor(seconds / 60);
+            const remainingSeconds = Math.floor(seconds % 60);
+            return `${minutes}m ${remainingSeconds}s`;
+        }
+
+        async function logRep() {
+            const now = new Date();
+            const formattedDate = now.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+            
+            const newEntry = {
+                date: now.toISOString(), // Store as ISO string for sorting
+                gripType: state.workoutGripType,
+                hand: state.workoutHand, 
+                weight: state.workoutWeight,
+                repNumber: state.currentRep, 
+                setNumber: state.currentSet,
+                repDuration: state.liftDuration,
+                userId: state.userId
             };
 
-            const startTestBtn = document.getElementById('start-test-btn');
-            const testTimerDisplay = document.getElementById('test-timer-display');
-            const testWeightInput = document.getElementById('test-weight');
-            const gripTestTypeInput = document.getElementById('grip-test-type');
-            const saveWeightBtn = document.getElementById('save-weight-btn');
+            state.workoutResults.push(newEntry);
+            renderLoggedResults();
 
-            const workoutGripTypeInput = document.getElementById('workout-grip-type');
-            const workoutWeightInput = document.getElementById('workout-weight');
-            const workoutHandSelect = document.getElementById('workout-hand'); 
-            const startWorkoutBtn = document.getElementById('start-workout-btn');
-            const cancelWorkoutBtn = document.getElementById('cancel-workout-btn');
-            const startNextSetBtn = document.getElementById('start-next-set-btn');
-            const setActionsDiv = document.getElementById('set-actions');
+            if (state.db && state.userId !== 'anonymous') {
+                try {
+                    const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+                    const repsCollectionRef = collection(state.db, `artifacts/${appId}/users/${state.userId}/tension_repeater_individual_reps`);
+                    await addDoc(repsCollectionRef, newEntry);
+                    console.log("Individual rep saved to Firestore.");
+                } catch (e) {
+                    console.error("Error saving individual rep:", e);
+                }
+            } else {
+                console.warn("Skipping individual rep save: Firebase not initialized or user not authenticated.");
+            }
+        }
+
+        function renderLoggedResults() {
+            resultsTableBody.innerHTML = ''; 
+            if (state.workoutResults.length === 0) {
+                resultsTableBody.innerHTML = `
+                    <tr>
+                        <td colspan="7" class="px-6 py-4 whitespace-nowrap text-sm text-slate-500 text-center">No workouts logged yet.</td>
+                    </tr>
+                `;
+                return;
+            }
+            // Re-add the table headers before populating to ensure consistency if emptied
+            const tableHeaderHtml = `
+                <thead>
+                    <tr>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Date</th>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Grip Type</th>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Hand</th>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Set #</th>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Rep #</th>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Rep Duration (s)</th>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Weight (lbs/kg)</th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-slate-200"></tbody>
+            `;
+            resultsTableBody.innerHTML = tableHeaderHtml;
+            const tbodyElement = resultsTableBody.querySelector('tbody');
+
+            state.workoutResults.forEach(result => {
+                const row = tbodyElement.insertRow();
+                row.className = 'hover:bg-slate-50';
+                const workoutDate = new Date(result.date);
+                const formattedDate = workoutDate.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) + ' ' + workoutDate.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+                
+                row.innerHTML = `
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-slate-900">${formattedDate}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-600">${result.gripType}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-600">${result.hand}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-600">${result.setNumber}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-600">${result.repNumber}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-600">${result.repDuration}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-600">${result.weight}</td>
+                `;
+            });
+        }
+
+        async function loadWorkoutHistory() {
+            if (!state.db || !state.userId || state.userId === 'anonymous') {
+                console.warn("Firebase not ready or user is anonymous, cannot load history.");
+                resultsTableBody.innerHTML = `<tr><td colspan="7" class="px-6 py-4 whitespace-nowrap text-sm text-slate-500 text-center">Please log in to view saved workout history.</td></tr>`;
+                return;
+            }
+
+            resultsTableBody.innerHTML = `<tr><td colspan="7" class="px-6 py-4 whitespace-nowrap text-sm text-slate-500 text-center">Loading workout history...</td></tr>`;
             
-            const workoutSetupDiv = document.getElementById('workout-setup');
-            const workoutEngineDiv = document.getElementById('workout-engine');
-            const timerStatus = document.getElementById('timer-status');
-            const timerCountdown = document.getElementById('timer-countdown');
-            const currentSetDisplay = document.getElementById('current-set-display'); 
-            const repCounter = document.getElementById('rep-counter');
-            const setInfo = document.getElementById('set-info');
-            const progressRing = document.getElementById('timer-progress-ring');
-            const resultsTableBody = document.getElementById('results-table-body');
-            const upNextDisplay = document.getElementById('up-next-display'); 
-            const upNextText = document.getElementById('up-next-text'); 
+            try {
+                const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+                // Load individual reps, not summaries for this page to match table
+                const workoutsCollectionRef = collection(state.db, `artifacts/${appId}/users/${state.userId}/tension_repeater_individual_reps`);
+                const q = query(workoutsCollectionRef);
+                const querySnapshot = await getDocs(q);
 
-            const ringCircumference = 2 * Math.PI * 45; 
+                state.workoutResults = []; // Clear local results array for loaded history
+                querySnapshot.forEach((doc) => {
+                    state.workoutResults.push(doc.data());
+                });
 
-            // User Info & Logout Button
-            const userNamePlaceholder = document.getElementById('user-name-placeholder');
-            const userInfoDisplay = document.getElementById('user-info-display');
-            const registerLoginBtn = document.getElementById('register-login-btn');
-            const logoutBtn = document.getElementById('logout-btn');
+                // Sort by date in descending order
+                state.workoutResults.sort((a, b) => new Date(b.date) - new Date(a.date));
 
-            // Firebase Initialization and Authentication 
+                renderLoggedResults(); // Render the loaded history
+            } catch (e) {
+                console.error("Error loading workout history:", e);
+                resultsTableBody.innerHTML = `<tr><td colspan="7" class="px-6 py-4 whitespace-nowrap text-sm text-red-600 text-center">Error loading history: ${e.message}.</td></tr>`;
+            }
+        }
+        
+        // --- Test Phase Logic (defined globally in module scope) ---
+        function startTestTimer() {
+            clearInterval(state.testTimerId);
+            startTestBtn.disabled = true;
+            saveWeightBtn.disabled = true;
+            state.testSeconds = 10;
+            testTimerDisplay.textContent = state.testSeconds;
+            
+            state.testTimerId = setInterval(() => {
+                state.testSeconds--;
+                testTimerDisplay.textContent = state.testSeconds;
+                if (state.testSeconds <= 0) {
+                    clearInterval(state.testTimerId);
+                    testTimerDisplay.textContent = "Test Complete!";
+                    startTestBtn.disabled = false;
+                    saveWeightBtn.disabled = false;
+                }
+            }, 1000);
+        }
+
+        function saveWeight() {
+            state.workoutGripType = gripTestTypeInput.value;
+            state.workoutWeight = parseFloat(testWeightInput.value);
+            workoutGripTypeInput.value = state.workoutGripType;
+            workoutWeightInput.value = state.workoutWeight;
+        }
+        
+        // --- Main Workout Logic (defined globally in module scope) ---
+        function runWorkoutTimer() {
+            workoutSetupDiv.classList.add('hidden');
+            workoutEngineDiv.classList.remove('hidden');
+            setActionsDiv.classList.add('hidden'); 
+            cancelWorkoutBtn.classList.remove('hidden'); 
+            upNextDisplay.classList.add('hidden'); 
+
+            state.workoutGripType = workoutGripTypeInput.value;
+            state.workoutWeight = parseFloat(workoutWeightInput.value);
+            state.workoutHand = workoutHandSelect.value;
+
+            clearInterval(state.workoutTimerId);
+            
+            currentSetDisplay.textContent = `Set ${state.currentSet}`; 
+
+            if (state.isLiftPhase) {
+                state.countdown = state.liftDuration;
+                timerStatus.textContent = "LIFT!";
+                timerStatus.classList.remove('text-green-600');
+                timerStatus.classList.add('text-red-600');
+                progressRing.classList.remove('text-green-500');
+                progressRing.classList.add('text-teal-500');
+
+            } else {
+                state.countdown = state.restDuration;
+                timerStatus.textContent = "REST";
+                timerStatus.classList.remove('text-red-600');
+                timerStatus.classList.add('text-green-600');
+                progressRing.classList.remove('text-teal-500');
+                progressRing.classList.add('text-green-500');
+            }
+            
+            repCounter.textContent = `Rep ${state.currentRep} of ${state.maxReps}`;
+            setInfo.textContent = `Grip: ${state.workoutGripType} | Weight: ${state.workoutWeight} | Hand: ${state.workoutHand}`;
+
+            state.workoutTimerId = setInterval(() => {
+                timerCountdown.textContent = state.countdown;
+                const totalDuration = state.isLiftPhase ? state.liftDuration : state.restDuration;
+                updateRing((state.countdown / totalDuration) * 100);
+                state.countdown--;
+                
+                if (state.countdown < 0) {
+                    if (state.isLiftPhase) {
+                        logRep(); 
+                        state.isLiftPhase = false;
+                        if (state.currentRep > state.maxReps) { 
+                            showSetSummary(); 
+                        } else {
+                            runWorkoutTimer();
+                        }
+                    } else { 
+                        state.isLiftPhase = true;
+                        state.currentRep++;
+                        runWorkoutTimer();
+                    }
+                }
+            }, 1000);
+        }
+        
+        async function showSetSummary() {
+            clearInterval(state.workoutTimerId);
+            timerStatus.textContent = "Set Complete!";
+            timerCountdown.textContent = "👏";
+            updateRing(100);
+            repCounter.textContent = `Set ${state.currentSet} Completed!`;
+            setInfo.textContent = `Grip: ${state.workoutGripType} | Weight: ${state.workoutWeight} | Hand: ${state.workoutHand}`;
+            
+            setActionsDiv.classList.remove('hidden'); 
+            cancelWorkoutBtn.classList.add('hidden'); 
+
+            updateUpNextDisplay(); 
+
+            // In 7-53.html, we are logging individual reps. The 'showSetSummary' is just for UI update.
+            // If you want to save a summary of the *set* (e.g., total reps, total time for that set),
+            // you would add that logic here, similar to how maxweight.html saves workout summaries.
+            // For now, based on the `logRep` modification, individual reps are saved.
+        }
+
+        function updateUpNextDisplay() {
+            upNextDisplay.classList.remove('hidden');
+            let nextHand = state.workoutHand === 'Right' ? 'Left' : 'Right';
+            let nextGripType = state.workoutGripType; 
+            upNextText.textContent = `Set ${state.currentSet + 1}: ${nextGripType} - ${nextHand} Hand`;
+        }
+
+        function startNextSetFlow() {
+            setActionsDiv.classList.add('hidden'); 
+            cancelWorkoutBtn.classList.remove('hidden'); 
+
+            timerStatus.textContent = "Resting between sets...";
+            timerCountdown.textContent = "";
+            repCounter.textContent = "";
+            setInfo.textContent = "";
+
+            let nextHand = state.workoutHand === 'Right' ? 'Left' : 'Right';
+            workoutHandSelect.value = nextHand; 
+            workoutGripTypeInput.value = state.workoutGripType; 
+
+            state.countdown = state.longRestDuration;
+            state.workoutTimerId = setInterval(() => {
+                const minutes = Math.floor(state.countdown / 60);
+                const seconds = state.countdown % 60;
+                timerCountdown.textContent = `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
+                state.countdown--;
+                if (state.countdown < 0) {
+                    state.currentSet++; 
+                    resetWorkoutEngine();
+                    upNextDisplay.classList.add('hidden'); 
+                }
+            }, 1000);
+        }
+
+        function resetWorkoutEngine() {
+            clearInterval(state.workoutTimerId);
+            state.currentRep = 1;
+            state.isLiftPhase = true;
+            workoutSetupDiv.classList.remove('hidden');
+            workoutEngineDiv.classList.add('hidden');
+            updateRing(0);
+            timerStatus.textContent = "LIFT!"; 
+            timerCountdown.textContent = state.liftDuration; 
+            setActionsDiv.classList.add('hidden'); 
+            cancelWorkoutBtn.classList.remove('hidden'); 
+        }
+        
+        // --- DOMContentLoaded Listener and Event Attachments ---
+        document.addEventListener('DOMContentLoaded', async () => {
+            // Assign DOM element references
+            startTestBtn = document.getElementById('start-test-btn');
+            testTimerDisplay = document.getElementById('test-timer-display');
+            testWeightInput = document.getElementById('test-weight');
+            gripTestTypeInput = document.getElementById('grip-test-type');
+            saveWeightBtn = document.getElementById('save-weight-btn');
+
+            workoutGripTypeInput = document.getElementById('workout-grip-type');
+            workoutWeightInput = document.getElementById('workout-weight');
+            workoutHandSelect = document.getElementById('workout-hand'); 
+            startWorkoutBtn = document.getElementById('start-workout-btn');
+            cancelWorkoutBtn = document.getElementById('cancel-workout-btn');
+            startNextSetBtn = document.getElementById('start-next-set-btn');
+            setActionsDiv = document.getElementById('set-actions');
+            
+            workoutSetupDiv = document.getElementById('workout-setup');
+            workoutEngineDiv = document.getElementById('workout-engine');
+            timerStatus = document.getElementById('timer-status');
+            timerCountdown = document.getElementById('timer-countdown');
+            currentSetDisplay = document.getElementById('current-set-display'); 
+            repCounter = document.getElementById('rep-counter');
+            setInfo = document.getElementById('set-info');
+            progressRing = document.getElementById('timer-progress-ring');
+            resultsTableBody = document.getElementById('results-table-body');
+            upNextDisplay = document.getElementById('up-next-display'); 
+            upNextText = document.getElementById('up-next-text'); 
+
+            userNamePlaceholder = document.getElementById('user-name-placeholder');
+            userInfoDisplay = document.getElementById('user-info-display');
+            registerLoginBtn = document.getElementById('register-login-btn');
+            logoutBtn = document.getElementById('logout-btn');
+
+            // --- Firebase Initialization and Authentication ---
             let app;
             const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
             const firebaseConfigString = typeof __firebase_config !== 'undefined' ? __firebase_config : '{}';
@@ -335,308 +618,4 @@
                             console.error("Error logging out:", error);
                         }
                     });
-                } catch (error) {
-                    console.error("Error during Firebase initialization:", error);
-                    state.userId = crypto.randomUUID(); 
-                }
-            } else {
-                console.warn("Firebase config is missing projectId or is empty. Cloud persistence will not be available.");
-                state.userId = crypto.randomUUID(); 
-            }
-
-            function updateRing(percent) {
-                const offset = ringCircumference - (percent / 100) * ringCircumference;
-                progressRing.style.strokeDashoffset = offset;
-            }
-
-            function startTestTimer() {
-                clearInterval(state.testTimerId);
-                startTestBtn.disabled = true;
-                saveWeightBtn.disabled = true;
-                state.testSeconds = 10;
-                testTimerDisplay.textContent = state.testSeconds;
-                
-                state.testTimerId = setInterval(() => {
-                    state.testSeconds--;
-                    testTimerDisplay.textContent = state.testSeconds;
-                    if (state.testSeconds <= 0) {
-                        clearInterval(state.testTimerId);
-                        testTimerDisplay.textContent = "Test Complete!";
-                        startTestBtn.disabled = false;
-                        saveWeightBtn.disabled = false;
-                    }
-                }, 1000);
-            }
-
-            function saveWeight() {
-                state.workoutGripType = gripTestTypeInput.value;
-                state.workoutWeight = parseFloat(testWeightInput.value);
-                workoutGripTypeInput.value = state.workoutGripType;
-                workoutWeightInput.value = state.workoutWeight;
-            }
-            
-            function runWorkoutTimer() {
-                workoutSetupDiv.classList.add('hidden');
-                workoutEngineDiv.classList.remove('hidden');
-                setActionsDiv.classList.add('hidden'); 
-                cancelWorkoutBtn.classList.remove('hidden'); 
-                upNextDisplay.classList.add('hidden'); 
-
-                state.workoutGripType = workoutGripTypeInput.value;
-                state.workoutWeight = parseFloat(workoutWeightInput.value);
-                state.workoutHand = workoutHandSelect.value;
-
-                clearInterval(state.workoutTimerId);
-                
-                currentSetDisplay.textContent = `Set ${state.currentSet}`; 
-
-                if (state.isLiftPhase) {
-                    state.countdown = state.liftDuration;
-                    timerStatus.textContent = "LIFT!";
-                    timerStatus.classList.remove('text-green-600');
-                    timerStatus.classList.add('text-red-600');
-                    progressRing.classList.remove('text-green-500');
-                    progressRing.classList.add('text-teal-500');
-
-                } else {
-                    state.countdown = state.restDuration;
-                    timerStatus.textContent = "REST";
-                    timerStatus.classList.remove('text-red-600');
-                    timerStatus.classList.add('text-green-600');
-                    progressRing.classList.remove('text-teal-500');
-                    progressRing.classList.add('text-green-500');
-                }
-                
-                repCounter.textContent = `Rep ${state.currentRep} of ${state.maxReps}`;
-                setInfo.textContent = `Grip: ${state.workoutGripType} | Weight: ${state.workoutWeight} | Hand: ${state.workoutHand}`;
-
-                state.workoutTimerId = setInterval(() => {
-                    timerCountdown.textContent = state.countdown;
-                    const totalDuration = state.isLiftPhase ? state.liftDuration : state.restDuration;
-                    updateRing((state.countdown / totalDuration) * 100);
-                    state.countdown--;
-                    
-                    if (state.countdown < 0) {
-                        if (state.isLiftPhase) {
-                            logRep(); 
-                            state.isLiftPhase = false;
-                            if (state.currentRep > state.maxReps) { 
-                                showSetSummary(); 
-                            } else {
-                                runWorkoutTimer();
-                            }
-                        } else { 
-                            state.isLiftPhase = true;
-                            state.currentRep++;
-                            runWorkoutTimer();
-                        }
-                    }
-                }, 1000);
-            }
-            
-            async function showSetSummary() {
-                clearInterval(state.workoutTimerId);
-                timerStatus.textContent = "Set Complete!";
-                timerCountdown.textContent = "👏";
-                updateRing(100);
-                repCounter.textContent = `Set ${state.currentSet} Completed!`;
-                setInfo.textContent = `Grip: ${state.workoutGripType} | Weight: ${state.workoutWeight} | Hand: ${state.workoutHand}`;
-                
-                setActionsDiv.classList.remove('hidden'); 
-                cancelWorkoutBtn.classList.add('hidden'); 
-
-                updateUpNextDisplay(); 
-
-                if (state.db && state.userId !== 'anonymous') {
-                    try {
-                        const workoutSummary = {
-                            date: new Date().toISOString(), 
-                            gripType: state.workoutGripType,
-                            weight: state.workoutWeight,
-                            hand: state.workoutHand,
-                            setNumber: state.currentSet,
-                            totalReps: state.maxReps,
-                            repDuration: state.liftDuration,
-                            totalLiftDuration: state.maxReps * state.liftDuration, 
-                            totalRestDuration: (state.maxReps - 1) * state.restDuration, 
-                            userId: state.userId
-                        };
-                        const workoutsCollectionRef = collection(state.db, `artifacts/${appId}/users/${state.userId}/tension_repeater_workout_summaries`); 
-                        await addDoc(workoutsCollectionRef, workoutSummary);
-                        console.log("Workout summary saved successfully!");
-                        loadWorkoutHistory(); 
-                    } catch (e) {
-                        console.error("Error saving workout summary:", e);
-                    }
-                } else {
-                    console.warn("Skipping workout summary save: Firebase not initialized or user not authenticated.");
-                }
-            }
-
-            function logRep() {
-                const now = new Date();
-                const formattedDate = now.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
-                
-                const newEntry = {
-                    date: formattedDate,
-                    gripType: state.workoutGripType,
-                    hand: state.workoutHand, 
-                    weight: state.workoutWeight,
-                    repNumber: state.currentRep, 
-                    setNumber: state.currentSet,
-                    repDuration: state.liftDuration 
-                };
-                state.workoutResults.push(newEntry);
-                renderLoggedResults();
-            }
-
-            function renderLoggedResults() {
-                resultsTableBody.innerHTML = ''; 
-                if (state.workoutResults.length === 0) {
-                    resultsTableBody.innerHTML = `
-                        <tr>
-                            <td colspan="7" class="px-6 py-4 whitespace-nowrap text-sm text-slate-500 text-center">No workouts logged yet.</td>
-                        </tr>
-                    `;
-                    return;
-                }
-                state.workoutResults.forEach(result => {
-                    const row = resultsTableBody.insertRow();
-                    row.className = 'hover:bg-slate-50';
-                    row.innerHTML = `
-                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-slate-900">${result.date}</td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-600">${result.gripType}</td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-600">${result.hand}</td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-600">${result.setNumber}</td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-600">${result.repNumber}</td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-600">${result.repDuration}</td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-600">${result.weight}</td>
-                    `;
-                });
-            }
-
-            async function loadWorkoutHistory() {
-                if (!state.db || !state.userId || state.userId === 'anonymous') {
-                    console.warn("Firebase not ready or user is anonymous, cannot load history.");
-                    resultsTableBody.innerHTML = `<tr><td colspan="7" class="px-6 py-4 whitespace-nowrap text-sm text-slate-500 text-center">Please log in to view saved workout history.</td></tr>`;
-                    return;
-                }
-
-                resultsTableBody.innerHTML = `<tr><td colspan="7" class="px-6 py-4 whitespace-nowrap text-sm text-slate-500 text-center">Loading workout history...</td></tr>`;
-                
-                try {
-                    const workoutsCollectionRef = collection(state.db, `artifacts/${appId}/users/${state.userId}/tension_repeater_workout_summaries`);
-                    const q = query(workoutsCollectionRef);
-                    const querySnapshot = await getDocs(q);
-
-                    let loadedSummaries = [];
-                    querySnapshot.forEach((doc) => {
-                        loadedSummaries.push(doc.data());
-                    });
-
-                    loadedSummaries.sort((a, b) => new Date(b.date) - new Date(a.date));
-
-                    resultsTableBody.innerHTML = '';
-                    if (loadedSummaries.length === 0) {
-                        resultsTableBody.innerHTML = `<tr><td colspan="7" class="px-6 py-4 whitespace-nowrap text-sm text-slate-500 text-center">No past workouts logged for this protocol.</td></tr>`;
-                    } else {
-                        // Re-add the table headers before populating
-                        const tableHeaderHtml = `
-                            <thead>
-                                <tr>
-                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Date</th>
-                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Grip Type</th>
-                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Hand</th>
-                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Set #</th>
-                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Total Reps</th>
-                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Rep Duration (s)</th>
-                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Weight (lbs/kg)</th>
-                                </tr>
-                            </thead>
-                            <tbody class="bg-white divide-y divide-slate-200"></tbody>
-                        `;
-                        resultsTableBody.innerHTML = tableHeaderHtml;
-                        const tbodyElement = resultsTableBody.querySelector('tbody');
-
-
-                        loadedSummaries.forEach((summary) => {
-                            const row = tbodyElement.insertRow(); // Insert into the new tbody
-                            row.className = 'hover:bg-slate-50';
-                            const workoutDate = new Date(summary.date);
-                            const formattedDate = workoutDate.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
-
-                            row.innerHTML = `
-                                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-slate-900">${formattedDate}</td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-600">${summary.gripType}</td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-600">${summary.hand}</td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-600">${summary.setNumber}</td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-600">${summary.totalReps}</td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-600">${summary.repDuration}</td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-600">${summary.weight}</td>
-                            `;
-                        });
-                    }
-                } catch (e) {
-                    console.error("Error loading workout history:", e);
-                    resultsTableBody.innerHTML = `<tr><td colspan="7" class="px-6 py-4 whitespace-nowrap text-sm text-red-600 text-center">Error loading history: ${e.message}.</td></tr>`;
-                }
-            }
-
-            function updateUpNextDisplay() {
-                upNextDisplay.classList.remove('hidden');
-                let nextHand = state.workoutHand === 'Right' ? 'Left' : 'Right';
-                let nextGripType = state.workoutGripType; 
-                upNextText.textContent = `Set ${state.currentSet + 1}: ${nextGripType} - ${nextHand} Hand`;
-            }
-
-            function startNextSetFlow() {
-                setActionsDiv.classList.add('hidden'); 
-                cancelWorkoutBtn.classList.remove('hidden'); 
-
-                timerStatus.textContent = "Resting between sets...";
-                timerCountdown.textContent = "";
-                repCounter.textContent = "";
-                setInfo.textContent = "";
-
-                let nextHand = state.workoutHand === 'Right' ? 'Left' : 'Right';
-                workoutHandSelect.value = nextHand; 
-                workoutGripTypeInput.value = state.workoutGripType; 
-
-                state.countdown = state.longRestDuration;
-                state.workoutTimerId = setInterval(() => {
-                    const minutes = Math.floor(state.countdown / 60);
-                    const seconds = state.countdown % 60;
-                    timerCountdown.textContent = `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
-                    state.countdown--;
-                    if (state.countdown < 0) {
-                        state.currentSet++; 
-                        resetWorkoutEngine();
-                        upNextDisplay.classList.add('hidden'); 
-                    }
-                }, 1000);
-            }
-
-            function resetWorkoutEngine() {
-                clearInterval(state.workoutTimerId);
-                state.currentRep = 1;
-                state.isLiftPhase = true;
-                workoutSetupDiv.classList.remove('hidden');
-                workoutEngineDiv.classList.add('hidden');
-                updateRing(0);
-                timerStatus.textContent = "LIFT!"; 
-                timerCountdown.textContent = state.liftDuration; 
-                setActionsDiv.classList.add('hidden'); 
-                cancelWorkoutBtn.classList.remove('hidden'); 
-            }
-            
-            startTestBtn.addEventListener('click', startTestTimer);
-            saveWeightBtn.addEventListener('click', saveWeight);
-            startWorkoutBtn.addEventListener('click', runWorkoutTimer);
-            cancelWorkoutBtn.addEventListener('click', resetWorkoutEngine);
-            startNextSetBtn.addEventListener('click', startNextSetFlow);
-
-            loadWorkoutHistory();
-        });
-    </script>
-</body>
-</html>
+              
