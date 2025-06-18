@@ -307,6 +307,7 @@
         let currentSessionTableBody, historyTableBody;
         let upNextDisplay, upNextText, setActionsDiv, totalTimesDisplay, totalWorkoutTimeSpan, totalLiftTimeSpan, totalRestTimeSpan;
         let userNamePlaceholder, userInfoDisplay, registerLoginBtn, logoutBtn;
+        let userIdDisplay, firebaseStatusDisplay; // Added new DOM element references
 
         const ringCircumference = 2 * Math.PI * 45;  
 
@@ -324,10 +325,9 @@
 
         function logLiftResult() {
             const now = new Date();
-            const formattedDate = now.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
-            
+            // Store date as ISO string for easier sorting in Firestore and consistent parsing
             const newEntry = {
-                date: now.toISOString(), // Changed to ISO string for better sorting and precision
+                date: now.toISOString(), 
                 gripType: state.workoutGripType,
                 hand: state.hands[state.currentHandIndex], 
                 weight: state.workoutWeight,
@@ -407,13 +407,14 @@
         }
 
         async function showWorkoutComplete() {
+            console.log("showWorkoutComplete: Workout completed, preparing to save summary.");
             clearInterval(state.workoutTimerId);
             state.currentWorkoutPhase = 'completed';
 
             state.totalWorkoutDuration = (Date.now() - state.workoutStartTime) / 1000;
 
             timerStatus.textContent = "Workout Complete!";
-            timerCountdown.textContent = "🎉";
+            timerCountdown.textContent = "�";
             updateRing(100);
             currentHandDisplay.textContent = `All ${state.setsPerGrip} Sets Completed!`;
             setInfo.textContent = ""; 
@@ -427,9 +428,9 @@
             setActionsDiv.classList.remove('hidden');
             cancelWorkoutBtn.classList.add('hidden');
 
-            if (state.db && state.userId !== 'anonymous') {
+            if (state.db && state.userId && state.userId !== 'anonymous' && state.userId !== 'Loading...') {
                 try {
-                    const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id'; // Define appId locally
+                    const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id'; 
                     const workoutSummary = {
                         date: new Date().toISOString(),
                         gripType: state.workoutGripType,
@@ -443,13 +444,13 @@
                     };
                     const workoutsCollectionRef = collection(state.db, `artifacts/${appId}/users/${state.userId}/classic_7_3_repeater_workout_summaries`); 
                     await addDoc(workoutsCollectionRef, workoutSummary);
-                    console.log("Workout summary saved successfully!");
-                    loadWorkoutHistory(); 
+                    console.log("showWorkoutComplete: Workout summary saved successfully!");
+                    loadWorkoutHistory(); // Reload history to show the new entry
                 } catch (e) {
-                    console.error("Error saving workout summary:", e);
+                    console.error("showWorkoutComplete: Error saving workout summary:", e);
                 }
             } else {
-                console.warn("Skipping workout summary save: Firebase not initialized or user not authenticated.");
+                console.warn("showWorkoutComplete: Skipping workout summary save: Firebase not initialized or user not authenticated correctly.");
             }
         }
 
@@ -460,7 +461,7 @@
             state.currentRep = 1;
             state.currentHandIndex = 0;
             state.currentWorkoutPhase = 'setup'; 
-            state.currentSessionLifts = [];
+            state.currentSessionLifts = []; // Clear current session lifts
             state.totalLiftDuration = 0;
             state.totalRestDuration = 0;
             state.workoutStartTime = null;
@@ -474,25 +475,28 @@
             cancelWorkoutBtn.classList.remove('hidden'); // Ensure cancel button is visible when in setup mode
             totalTimesDisplay.classList.add('hidden'); // Hide total times
 
-            renderCurrentSessionLifts();
+            renderCurrentSessionLifts(); // Clear current session lifts table on UI
             updateUpNextDisplay();
         }
 
         // --- Firestore Loading and Display of Workout History ---
         async function loadWorkoutHistory() {
             console.log("loadWorkoutHistory: Attempting to load workout history.");
-            if (!state.db || !state.userId || state.userId === 'anonymous') { 
+            // Ensure Firebase is ready and userId is NOT 'anonymous' or 'Loading...'
+            if (!state.db || !state.userId || state.userId === 'anonymous' || state.userId === 'Loading...') { 
                 console.warn("loadWorkoutHistory: Firebase not ready to load history, or user is not authenticated. Skipping history load.");
-                if (state.db) {
+                if (historyTableBody) { // Check if element exists before modifying
                     historyTableBody.innerHTML = `<tr><td colspan="8" class="px-6 py-4 whitespace-nowrap text-sm text-slate-500 text-center">Please log in to view saved workout history.</td></tr>`;
                 }
                 return;
             }
             
-            historyTableBody.innerHTML = `<tr><td colspan="8" class="px-6 py-4 whitespace-nowrap text-sm text-slate-500 text-center">Loading workout history...</td></tr>`;
+            if (historyTableBody) { // Check if element exists before modifying
+                historyTableBody.innerHTML = `<tr><td colspan="8" class="px-6 py-4 whitespace-nowrap text-sm text-slate-500 text-center">Loading workout history...</td></tr>`;
+            }
 
             try {
-                const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id'; // Define appId locally
+                const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id'; 
                 const workoutsCollectionRef = collection(state.db, `artifacts/${appId}/users/${state.userId}/classic_7_3_repeater_workout_summaries`); 
                 const q = query(workoutsCollectionRef); 
                 const querySnapshot = await getDocs(q);
@@ -508,11 +512,17 @@
                 console.log("loadWorkoutHistory: Workout history loaded successfully.");
             } catch (e) {
                 console.error("loadWorkoutHistory: Error loading workout history:", e);
-                historyTableBody.innerHTML = `<tr><td colspan="8" class="px-6 py-4 whitespace-nowrap text-sm text-red-600 text-center">Error loading history: ${e.message}.</td></tr>`;
+                if (historyTableBody) { // Check if element exists before modifying
+                    historyTableBody.innerHTML = `<tr><td colspan="8" class="px-6 py-4 whitespace-nowrap text-sm text-red-600 text-center">Error loading history: ${e.message}.</td></tr>`;
+                }
             }
         }
 
         function renderWorkoutHistory() {
+            if (!historyTableBody) { // Ensure the element exists
+                console.warn("renderWorkoutHistory: historyTableBody element not found.");
+                return;
+            }
             historyTableBody.innerHTML = '';
             if (state.workoutHistorySummaries.length === 0) {
                 historyTableBody.innerHTML = `
@@ -723,6 +733,24 @@
             console.log("classicrepeaters.html: DOM Content Loaded!"); // Debugging log
 
             // Assign DOM element references
+            userIdDisplay = document.createElement('span'); // Create element if not already in HTML
+            userIdDisplay.id = 'user-id-display';
+            userIdDisplay.className = 'font-mono text-slate-900 bg-slate-100 p-2 rounded-md';
+
+            firebaseStatusDisplay = document.createElement('p'); // Create element
+            firebaseStatusDisplay.id = 'firebase-status';
+            firebaseStatusDisplay.className = 'mt-2 text-sm text-slate-500';
+
+            // Insert these elements into the DOM where appropriate, e.g., near user-info-display
+            const userInfoParent = document.getElementById('user-info-display').parentElement;
+            if (userInfoParent) {
+                userInfoParent.insertAdjacentElement('afterend', firebaseStatusDisplay);
+                firebaseStatusDisplay.insertAdjacentElement('beforebegin', userIdDisplay); // Put userIdDisplay before status
+                userIdDisplay.textContent = 'Loading User ID...';
+                firebaseStatusDisplay.textContent = 'Firebase Status: Initializing...';
+            }
+
+
             startTestBtn = document.getElementById('start-test-btn');
             testTimerDisplay = document.getElementById('test-timer-display');
             testWeightInput = document.getElementById('test-weight');
@@ -781,6 +809,7 @@
                     state.db = getFirestore(app);
                     state.auth = getAuth(app);
                     console.log("classicrepeaters.html: Firebase Auth initialized.");
+                    firebaseStatusDisplay.textContent = "Firebase Status: Connected.";
 
                     if (typeof __initial_auth_token !== 'undefined') {
                         try {
@@ -795,6 +824,7 @@
                         if (user) {
                             state.userId = user.uid;
                             console.log("classicrepeaters.html: Firebase user ID:", state.userId);
+                            userIdDisplay.textContent = state.userId; // Update user ID display
                             loadWorkoutHistory(); // Load history after user is authenticated
 
                             // Update UI for logged-in user
@@ -806,13 +836,19 @@
                         } else {
                             state.userId = crypto.randomUUID(); 
                             console.log("classicrepeaters.html: No user signed in. Using random ID for local operations:", state.userId);
+                            userIdDisplay.textContent = "Anonymous (Local)"; // Update user ID display
+                            firebaseStatusDisplay.textContent = "Firebase Status: Not authenticated. Data is local to this session or requires login.";
+
 
                             // Update UI for logged-out user
                             userNamePlaceholder.textContent = "Guest";
                             userInfoDisplay.classList.add('hidden');
                             registerLoginBtn.classList.remove('hidden');
                             logoutBtn.classList.add('hidden');
-                            historyTableBody.innerHTML = `<tr><td colspan="8" class="px-6 py-4 whitespace-nowrap text-sm text-slate-500 text-center">Please log in to view saved workout history.</td></tr>`;
+                            // Ensure history table reflects "Please log in" if not authenticated
+                            if (historyTableBody) {
+                                historyTableBody.innerHTML = `<tr><td colspan="8" class="px-6 py-4 whitespace-nowrap text-sm text-slate-500 text-center">Please log in to view saved workout history.</td></tr>`;
+                            }
                         }
                     });
                     // Logout button event listener
@@ -827,12 +863,20 @@
                     });
                 } catch (error) {
                     console.error("classicrepeaters.html: Error during Firebase initialization:", error);
-                    historyTableBody.innerHTML = `<tr><td colspan="8" class="px-6 py-4 whitespace-nowrap text-sm text-red-600 text-center">Error setting up Firebase: ${error.message}. Cloud persistence will not be available.</td></tr>`;
+                    if (historyTableBody) {
+                        historyTableBody.innerHTML = `<tr><td colspan="8" class="px-6 py-4 whitespace-nowrap text-sm text-red-600 text-center">Error setting up Firebase: ${error.message}. Cloud persistence will not be available.</td></tr>`;
+                    }
+                    userIdDisplay.textContent = "Error (Local)";
+                    firebaseStatusDisplay.textContent = `Firebase Status: Error (${error.message}). Cloud persistence unavailable.`;
                     state.userId = crypto.randomUUID(); 
                 }
             } else {
                 console.warn("classicrepeaters.html: Firebase config is missing projectId or is empty. Cloud persistence will not be available.");
-                historyTableBody.innerHTML = `<tr><td colspan="8" class="px-6 py-4 whitespace-nowrap text-sm text-yellow-600 text-center">Cloud persistence not available. Firebase project ID missing from configuration.</td></tr>`;
+                if (historyTableBody) {
+                    historyTableBody.innerHTML = `<tr><td colspan="8" class="px-6 py-4 whitespace-nowrap text-sm text-yellow-600 text-center">Cloud persistence not available. Firebase project ID missing from configuration.</td></tr>`;
+                }
+                userIdDisplay.textContent = "Local Session (No Cloud)";
+                firebaseStatusDisplay.textContent = "Firebase Status: Configuration Missing. Cloud persistence unavailable.";
                 state.userId = crypto.randomUUID(); 
             }
 
@@ -846,8 +890,11 @@
             cancelWorkoutBtn.addEventListener('click', () => resetWorkoutForNewSession());
             startNewWorkoutBtn.addEventListener('click', () => resetWorkoutForNewSession());
 
-            loadWorkoutHistory(); // Initial load of history on page load
+            // Initial load of history on page load
+            // This is handled by onAuthStateChanged after Firebase init.
+            // If Firebase fails to init, loadWorkoutHistory will be called but warn/show error.
         });
     </script>
 </body>
 </html>
+�
